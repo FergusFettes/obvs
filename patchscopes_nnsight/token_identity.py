@@ -1,8 +1,7 @@
 from patchscopes_nnsight.patchsopes import SourceContext, TargetContext, Patchscope
 
+# Set up source config for the token identity example
 prompt = "John and Mary are walking together. John said to"
-
-# Setup source and target context with the simplest configuration
 source_context = SourceContext(
     prompt=prompt,  # Example input text
     model_name="gpt2",
@@ -11,22 +10,27 @@ source_context = SourceContext(
     device="cpu"
 )
 
-
+# Copy source config to target config and modify
 target_context = TargetContext.from_source(source_context)
 target_context.layer = 0  # Layer remains equal to source context throughout
 target_context.prompt = "bob → bob ; man → man ; sea → sea ; house"
 
+# Print the source and target contexts
 print(source_context)
 print(target_context)
 
+# Create the patchscope
 patchscope = Patchscope(source=source_context, target=target_context)
 
+# Prepare to gather data
 john_token = patchscope.target_model.tokenizer.encode(" John")
 mary_token = patchscope.target_model.tokenizer.encode(" Mary")
 john_probs = []
 mary_probs = []
 top_k = []
 top_k_probs = []
+
+# Run the patchscope for each layer
 for i in range(1, 12):
     print(f"Layer {i}")
 
