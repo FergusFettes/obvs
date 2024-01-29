@@ -1,28 +1,55 @@
 from patchscopes_pytorch.patchsopes import SourceContext, TargetContext, Patchscope
 
+prompt = "Today is opposites day. The grass is blue. The sea is green. Our protagonist goes outside and looks around at the birds and the beas. She looks up at the sky, and marvels at its hue, a beautiful bright green. The suns color is"
 
 # Setup source and target context with the simplest configuration
 source_context = SourceContext(
-    input_sequence=["On opposites day, the grass is blue and the sky is"],  # Example input text
+    input_sequence=[prompt],  # Example input text
     model_name="gpt2",
     position=-1,  # Last token (assuming single input)
-    layer=10,  # 10th layer (logit lense actually tests each layer, we'll start with one.)
+    layer=0,  # 10th layer (logit lense actually tests each layer, we'll start with one.)
     device="cpu"
 )
 
 target_context = TargetContext(
-    target_prompt=["On opposites day, the grass is blue and the sky is"],  # Same as source
-    model_name="gpt2",
-    position=-1,  # Same position
+    target_prompt=source_context.input_sequence,
+    model_name=source_context.model_name,
+    position=source_context.position,
+    device=source_context.device,
+
     layer=-1,  # Last layer (logit lens)
-    device="cpu"
 )
 
-# # Run it over all the layers
-# for layer in range(12):
-#     source_context.layer = layer
-#     patchscope = Patchscope(source=source_context, target=target_context)
-#     patched_output = patchscope.run()
-
 patchscope = Patchscope(source=source_context, target=target_context)
-patched_output = patchscope.run()
+green_token = patchscope.target_model.tokenizer.encode(" green")
+blue_token = patchscope.target_model.tokenizer.encode(" blue")
+green_probs = []
+blue_probs = []
+top_k = []
+for i in range(1, 11):
+    print(f"Layer {i}")
+
+    source_context.layer = i
+    patchscope = Patchscope(source=source_context, target=target_context)
+    patchscope.run()
+
+    logits = patchscope.logits()
+    green_probs.append(logits[green_token].item())
+    blue_probs.append(logits[blue_token].item())
+
+    top_k.append(patchscope.top_k_tokens(5))
+
+
+# Convert negative logprobs to probs
+print(green_probs)
+print(blue_probs)
+print(top_k)
+
+# patchscope = Patchscope(source=source_context, target=target_context)
+# patchscope.run()
+#
+# # Find the word ' green' in the logits, print the probs
+# token = patchscope.target_model.tokenizer.encode(" green")
+# logits = patchscope._target_invoker.output[0][patchscope.batch_size, patchscope.target.position, :]
+#
+# green_prob = logits[token].item()

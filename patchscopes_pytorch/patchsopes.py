@@ -92,15 +92,20 @@ class Patchscope:
         """
         Return the top k tokens from the target model
         """
-        return self.target_model.tokenizer.decode(
-            self._target_invoker.output[0][self.batch_size, self.target.position, :].topk(k).indices.tolist()
-        )
+        tokens = self._target_invoker.output[0][self.batch_size, self.target.position, :].topk(k).indices.tolist()
+        return [self.target_model.tokenizer.decode(token) for token in tokens]
 
-    def top_k_logits(self, k=10):
+    def top_k_probs(self, k=10):
         """
         Return the top k logits from the target model
         """
         return self._target_invoker.output[0][self.batch_size, self.target.position, :].topk(k).values.tolist()
+
+    def logits(self):
+        """
+        Return the logits from the target model
+        """
+        return self._target_invoker.output[0][self.batch_size, self.target.position, :]
 
     def run(self):
         """
