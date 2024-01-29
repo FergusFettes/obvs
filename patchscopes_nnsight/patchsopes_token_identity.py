@@ -13,7 +13,7 @@ source_context = SourceContext(
 
 
 target_context = TargetContext.from_source(source_context)
-target_context.layer = 0  # First layer (token identity lens)
+target_context.layer = 0  # Layer remains equal to source context throughout
 target_context.prompt = "bob → bob ; man → man ; sea → sea ; house"
 
 print(source_context)
@@ -31,6 +31,8 @@ for i in range(1, 12):
     print(f"Layer {i}")
 
     source_context.layer = i
+    target_context.layer = i
+
     patchscope = Patchscope(source=source_context, target=target_context)
     patchscope.run()
 
