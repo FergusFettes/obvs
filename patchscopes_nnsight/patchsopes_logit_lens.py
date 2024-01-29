@@ -40,16 +40,6 @@ for i in range(1, 11):
     top_k.append(patchscope.top_k_tokens(5))
 
 
-# Convert negative logprobs to probs
 print(green_probs)
 print(blue_probs)
 print(top_k)
-
-# patchscope = Patchscope(source=source_context, target=target_context)
-# patchscope.run()
-#
-# # Find the word ' green' in the logits, print the probs
-# token = patchscope.target_model.tokenizer.encode(" green")
-# logits = patchscope._target_invoker.output[0][patchscope.batch_size, patchscope.target.position, :]
-#
-# green_prob = logits[token].item()
