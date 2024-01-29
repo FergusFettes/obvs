@@ -59,28 +59,16 @@ class Patchscope:
         self.source_model = LanguageModel(self.source.model_name, device_map=self.source.device)
         self.target_model = LanguageModel(self.target.model_name, device_map=self.target.device)
 
-    # def source_forward_pass(self):
-    #     """
-    #     Get the source representation
-    #     """
-    #     with self.source_model.invoke(self.source.input_sequence) as _:
-    #         self._source_hidden_state = (
-    #             self.source_model
-    #             .transformer.h[self.source.layer]   # Layer syntax for each model is different in nnsight
-    #             .output[0][self.batch_size, self.source.position, :]    # Get the hidden state at position i
-    #         ).save()
-
     def source_forward_pass(self):
         """
         Get the source representation
         """
-        with self.source_model.generate(max_new_tokens=1) as generator:
-            with generator.invoke(self.source.input_sequence) as _:
-                self._source_hidden_state = (
-                    self.source_model
-                    .transformer.h[self.source.layer]                               # Layer syntax for each model is different in nnsight
-                    .output[0][self.batch_size, self.source.position, :]            # Get the hidden state at position i
-                ).save()
+        with self.source_model.invoke(self.source.input_sequence) as _:
+            self._source_hidden_state = (
+                self.source_model
+                .transformer.h[self.source.layer]   # Layer syntax for each model is different in nnsight
+                .output[0][self.batch_size, self.source.position, :]    # Get the hidden state at position i
+            ).save()
 
     def map(self):
         """
