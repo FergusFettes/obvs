@@ -1,7 +1,8 @@
 import torch
 from dataclasses import dataclass, field
 from typing import Callable, Sequence
-from transformers import AutoModel
+
+from nnsight import LanguageModel
 
 
 # Implementation of the patchscopes framework
@@ -33,9 +34,9 @@ class SourceContext:
 class TargetContext:
     target_prompt: Sequence[str]
     position: int
-    mapping_function: Callable[[torch.Tensor], torch.Tensor]
     model_name: str
     layer: int
+    mapping_function: Callable[[torch.Tensor], torch.Tensor] = lambda x: x
 
 
 @dataclass
@@ -57,7 +58,7 @@ class Patchscope:
     @staticmethod
     def load_model(model_name: str) -> torch.nn.Module:
         # Example of loading a model from Hugging Face's transformers library
-        model = AutoModel.from_pretrained(model_name)
+        model = LanguageModel(model_name)
         return model
 
     def attach_hook_to_layer(self, model, layer_index):

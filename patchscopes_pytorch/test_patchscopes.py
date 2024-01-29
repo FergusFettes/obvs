@@ -1,22 +1,18 @@
-from patchscopes_pytorch import SourceContext, TargetContext, Patchscope
-
-
-# Define your simple identity mapping function
-def identity(x):
-    return x
+from patchscopes_pytorch.patchsopes import SourceContext, TargetContext, Patchscope
 
 
 # Setup source and target context with the simplest configuration
 source_context = SourceContext(
     input_sequence=["Hello, how are you?"],  # Example input text
+    model_name="gpt2",
     position=-1,  # Last token (assuming single input)
-    layer=-2  # Second-to-last layer
+    layer=10,  # 10th layer (logit lense actually tests each layer, we'll start with one.)
 )
 
 target_context = TargetContext(
     target_prompt=["Hello, how are you?"],  # Same as source
+    model_name="gpt2",
     position=-1,  # Same position
-    mapping_function=identity,  # Identity function, no change
     layer=-1  # Last layer (logit lens)
 )
 
