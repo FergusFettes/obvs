@@ -13,7 +13,8 @@ source_context = SourceContext(
 
 
 target_context = TargetContext.from_source(source_context)
-target_context.layer = -1  # Last layer (logit lens)
+target_context.layer = 0  # First layer (token identity lens)
+target_context.prompt = "bob → bob ; man → man ; sea → sea ; house"
 
 print(source_context)
 print(target_context)
@@ -71,7 +72,7 @@ fig.add_trace(go.Scatter(
 ))
 
 fig.update_layout(
-    title="John and Mary Logits by Layer",
+    title="John and Mary Probs by Layer",
     xaxis_title="Layer",
     yaxis_title="Logit"
 )
