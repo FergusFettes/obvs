@@ -13,7 +13,8 @@ source_context = SourceContext(
 # Copy source config to target config and modify
 target_context = TargetContext.from_source(source_context)
 target_context.layer = 0  # Layer remains equal to source context throughout
-target_context.prompt = "bob → bob ; man → man ; sea → sea ; house"
+target_context.prompt = "cat->cat; 135->135; hello->hello; black->black; shoe->shoe; start->start; mean->mean; ?"
+
 
 # Print the source and target contexts
 print(source_context)

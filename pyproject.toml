@@ -10,7 +10,8 @@ license = "UNLICENSED"
 classifiers = ["Private :: Do Not Upload"]
 packages = [
   # { include = "obvs" },
-  { include = "patchscopes_pytorch" },
+  { include = "patchscopes_nnsight" },
+  { include = "patchscopes_transformerlens" },
   # Add more packages here, e.g.
   # { include = "module_name", from = "obvs" },
 ]
