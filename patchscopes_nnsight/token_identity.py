@@ -4,7 +4,8 @@ from patchscopes_nnsight.patchsopes import SourceContext, TargetContext, Patchsc
 prompt = "John and Mary are walking together. John said to"
 source_context = SourceContext(
     prompt=prompt,  # Example input text
-    model_name="gpt2",
+    # model_name="gpt2",
+    model_name="mistralai/Mistral-7B-v0.1",
     position=-1,  # Last token (assuming single input)
     layer=0,  # 10th layer (logit lense actually tests each layer, we'll start with one.)
     device="cpu"
@@ -31,7 +32,7 @@ top_k = []
 top_k_probs = []
 
 # Run the patchscope for each layer
-for i in range(1, 12):
+for i in range(1, 32, 3):
     print(f"Layer {i}")
 
     source_context.layer = i

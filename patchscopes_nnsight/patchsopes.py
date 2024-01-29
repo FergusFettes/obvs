@@ -106,12 +106,27 @@ class Patchscope:
         Get the source representation
         """
         with self.source_model.invoke(self.source.prompt) as source_invoker:
-            self._source_hidden_state = (
-                self.source_model
-                .transformer.h[self.source.layer]   # Layer syntax for each model is different in nnsight
-                .output[0][self.batch_size, self.source.position, :]    # Get the hidden state at position i
-            ).save()
+            if self.source.model_name == "gpt2":
+                self._source_forward_pass_gpt2()
+            elif self.source.model_name == "mistralai/Mistral-7B-v0.1":
+                self._source_forward_pass_mistral()
+            else:
+                raise NotImplementedError(f"Model {self.source.model_name} not implemented")
         self._source_invoker = source_invoker
+
+    def _source_forward_pass_gpt2(self):
+        self._source_hidden_state = (
+            self.source_model
+            .transformer.h[self.source.layer]   # Layer syntax for each model is different in nnsight
+            .output[0][self.batch_size, self.source.position, :]    # Get the hidden state at position i
+        ).save()
+
+    def _source_forward_pass_mistral(self):
+        self._source_hidden_state = (
+            self.source_model
+            .model.layers[self.source.layer]
+            .output[0][self.batch_size, self.source.position, :]
+        ).save()
 
     def map(self):
         """
@@ -123,13 +138,28 @@ class Patchscope:
         """
         Patch the target representation
         """
-        with self.target_model.invoke(self.target.prompt) as invoker:
-            (
-                self.target_model
-                .transformer.h[self.target.layer]                               # Layer syntax for each model is different in nnsight
-                .output[0][self.batch_size, self.target.position, :]            # Get the hidden state at position i*
-            ) = self._source_hidden_state
-        self._target_invoker = invoker
+        with self.target_model.invoke(self.target.prompt) as target_invoker:
+            if self.target.model_name == "gpt2":
+                self._target_forward_pass_gpt2()
+            elif self.target.model_name == "mistralai/Mistral-7B-v0.1":
+                self._target_forward_pass_mistral()
+            else:
+                raise NotImplementedError(f"Model {self.target.model_name} not implemented")
+        self._target_invoker = target_invoker
+
+    def _target_forward_pass_gpt2(self):
+        (
+            self.target_model
+            .transformer.h[self.target.layer]
+            .output[0][self.batch_size, self.target.position, :]
+        ) = self._source_hidden_state
+
+    def _target_forward_pass_mistral(self):
+        (
+            self.target_model
+            .model.layers[self.target.layer]
+            .output[0][self.batch_size, self.target.position, :]
+        ) = self._source_hidden_state
 
     def top_k_tokens(self, k=10):
         """
