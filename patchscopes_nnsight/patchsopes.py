@@ -6,7 +6,7 @@ from nnsight import LanguageModel
 from nnsight.contexts import Invoker
 
 
-# Implementation of the patchscopes framework
+# Implementation of the patchscopes framework: https://arxiv.org/abs/2401.06102
 # Patchscopes takes a representation like so:
 # - (S, i, M, ℓ) corresponds to the source from which the original hidden representation is drawn.
 #   - S is the source input sequence.
@@ -14,6 +14,7 @@ from nnsight.contexts import Invoker
 #   - M is the original model that processes the sequence.
 #   - ℓ is the layer in model M from which the hidden representation is taken.
 #
+# and patches it to a target context like so:
 # - (T, i*, f, M*, ℓ*) defines the target context for the intervention (patching operation).
 #   - T is the target prompt, which can be different from the source prompt S or the same.
 #   - i* is the position in the target prompt that will receive the patched representation.
@@ -21,6 +22,18 @@ from nnsight.contexts import Invoker
 #       it before it is patched into the target context. It can be a simple identity function or a more complex transformation.
 #   - M* is the model (which could be the same as M or different) in which the patching operation is performed.
 #   - ℓ* is the layer in the target model M* where the hidden representation h̅ᵢˡ* will be replaced with the patched version.
+#
+# The simplest patchscope is defined by the following parameters:
+# - S = T
+# - i = i*
+# - M = M*
+# - ℓ = ℓ*
+# - f = identity function
+# would be indistinguishable from a forward pass.
+# The most simple one that does something interesting is the logit lens, where:
+# - ℓ = range(L*)
+# - ℓ* = L*
+# Meaning, we take the hidden representation from each layer of the source model and patch it into the final layer of the target model.
 
 
 @dataclass
