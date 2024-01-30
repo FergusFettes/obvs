@@ -77,11 +77,19 @@ class Patchscope:
         self.source_model = HookedTransformer.from_pretrained(self.source.model_name)
         self.target_model = HookedTransformer.from_pretrained(self.target.model_name)
 
+        # If the source or target use '-1' for the layer, we need to find the number
+        # of layers in the model and set the layer to the last layer
+        if self.source.layer == -1:
+            self.source.layer = len(self.source_model.blocks) - 1
+        if self.target.layer == -1:
+            self.target.layer = len(self.target_model.blocks) - 1
+
     def source_forward_pass(self):
         """
         Run the source model on the prompt and cache all the activations
         """
-        _, self._source_cache = self.source_model.run_with_cache(self.source.prompt)["resid_pre", self.source.layer]
+        _, source_cache = self.source_model.run_with_cache(self.source.prompt)
+        self._source_cache = source_cache["resid_pre", self.source.layer]
         self._source_hidden_state = self._source_cache[self.batch_size, self.source.position, :]
 
     def map(self):
@@ -110,12 +118,17 @@ class Patchscope:
             ]
         )
 
+    # ################
+    # Helper functions
+    # ################
+    # [vocab_size]
     def logits(self):
         """
         Return the logits from the target model
         """
-        return self._target_logits
+        return self._target_logits[self.batch_size, self.target.position, :]
 
+    # [vocab_size]
     def probabilities(self):
         """
         Return the probabilities from the target model
