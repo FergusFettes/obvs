@@ -17,10 +17,10 @@ class SourceContext:
     """
     Source context for the patchscope
     """
-    prompt: Sequence[str]
-    position: int
-    model_name: str
-    layer: int
+    prompt: Sequence[str] = ""
+    position: int = 0
+    model_name: str = "gpt2"
+    layer: int = 0
     device: str = "cuda:0"
 
     def __repr__(self):
@@ -80,9 +80,9 @@ class Patchscope:
         # If the source or target use '-1' for the layer, we need to find the number
         # of layers in the model and set the layer to the last layer
         if self.source.layer == -1:
-            self.source.layer = len(self.source_model.blocks) - 1
+            self.source.layer = self.source_model.cfg.n_layers - 1
         if self.target.layer == -1:
-            self.target.layer = len(self.target_model.blocks) - 1
+            self.target.layer = self.target_model.cfg.n_layers - 1
 
     def source_forward_pass(self):
         """
@@ -102,7 +102,6 @@ class Patchscope:
         """
         Run the target model with the mapped source representation
         """
-
         def hook_fn(
             target_activations: Float[Tensor, '...'],
             hook: HookPoint
@@ -110,30 +109,15 @@ class Patchscope:
             target_activations[self.batch_size, self.target.position, :] = self._source_hidden_state
             return target_activations
 
-        self._target_logits = self.target_model.run_with_hooks(
-            self.target.prompt,
-            return_type="logits",
-            fwd_hooks=[
-                (get_act_name("resid_pre", self.target.layer), hook_fn)
-            ]
+        self.target_model.add_hook(
+            get_act_name("resid_pre", self.target.layer),
+            hook_fn,
         )
 
-    # ################
-    # Helper functions
-    # ################
-    # [vocab_size]
-    def logits(self):
-        """
-        Return the logits from the target model
-        """
-        return self._target_logits[self.batch_size, self.target.position, :]
-
-    # [vocab_size]
-    def probabilities(self):
-        """
-        Return the probabilities from the target model
-        """
-        return torch.softmax(self.logits(), dim=-1)
+        self._target_logits = self.target_model.forward(
+            self.target.prompt,
+            return_type="logits",
+        )
 
     def run(self):
         """
@@ -142,3 +126,27 @@ class Patchscope:
         self.source_forward_pass()
         self.map()
         self.target_forward_pass()
+
+    # ################
+    # Helper functions
+    # ################
+    def logits(self):
+        """
+        Return the logits from the target model
+        Dims: [vocab_size]
+        """
+        return self._target_logits[self.batch_size, self.target.position, :]
+
+    def probabilities(self):
+        """
+        Return the probabilities from the target model
+        Dims: [vocab_size]
+        """
+        return torch.softmax(self.logits(), dim=-1)
+
+    def output(self):
+        """
+        Return the generated output from the target model
+        """
+        tokens = self._target_logits[self.batch_size, :, :].argmax(dim=-1)
+        return [self.target_model.tokenizer.decode(token) for token in tokens]
