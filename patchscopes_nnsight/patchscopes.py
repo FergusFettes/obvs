@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Sequence, Optional
 
 from nnsight import LanguageModel
-from nnsight.contexts import Invoker
+from nnsight.contexts import Invoker, Runner
 
 
 @dataclass
@@ -96,8 +96,8 @@ class Patchscope:
     REMOTE: bool = False
 
     _source_hidden_state: torch.Tensor = field(init=False)
-    _source_invoker: Invoker.Invoker = field(init=False)
-    _target_invoker: Invoker.Invoker = field(init=False)
+    _target_output: Invoker.Invoker = field(init=False)
+    _target_generator: Runner.Runner = field(init=False)
 
     def __post_init__(self):
         # Load models
@@ -109,13 +109,12 @@ class Patchscope:
         Get the source representation
         """
         with self.source_model.forward(remote=self.REMOTE) as runner:
-            with runner.invoke(self.source.prompt) as source_invoker:
+            with runner.invoke(self.source.prompt) as _:
                 self._source_hidden_state = (
                     self.source_model
                     .transformer.h[self.source.layer]   # Layer syntax for each model is different in nnsight
                     .output[0][self.batch_size, self.source.position, :]
                 ).save()
-        self._source_invoker = source_invoker
 
     def map(self):
         """
@@ -131,13 +130,16 @@ class Patchscope:
             remote=self.REMOTE,
             max_new_tokens=self.target.max_new_tokens,
         ) as runner:
-            with runner.invoke(self.target.prompt) as invoker:
+            with runner.invoke(self.target.prompt) as _:
                 (
                     self.target_model
                     .transformer.h[self.target.layer]                               # Layer syntax for each model is different in nnsight
                     .output[0][self.batch_size, self.target.position, :]            # Get the hidden state at position i*
                 ) = self._source_hidden_state
-        self._target_invoke = invoker
+
+                self._target_output = self.target_model.lm_head.output[0].save()
+
+        self._target_generator = runner
 
     def run(self):
         """
@@ -154,14 +156,14 @@ class Patchscope:
         """
         Return the top k tokens from the target model
         """
-        tokens = self._target_invoker.output[0][self.batch_size, self.target.position, :].topk(k).indices.tolist()
+        tokens = self._target_output.value[self.batch_size, self.target.position, :].topk(k).indices.tolist()
         return [self.target_model.tokenizer.decode(token) for token in tokens]
 
     def top_k_logits(self, k=10):
         """
         Return the top k logits from the target model
         """
-        return self._target_invoker.output[0][self.batch_size, self.target.position, :].topk(k).values.tolist()
+        return self._target_output.value[self.batch_size, self.target.position, :].topk(k).values.tolist()
 
     def top_k_probs(self, k=10):
         """
@@ -174,7 +176,7 @@ class Patchscope:
         """
         Return the logits from the target model
         """
-        return self._target_invoker.output[0][self.batch_size, self.target.position, :]
+        return self._target_output.value[self.batch_size, self.target.position, :]
 
     def probabilities(self):
         """
@@ -186,19 +188,19 @@ class Patchscope:
         """
         Return the generated output from the target model
         """
-        tokens = self._target_invoker.output[0][self.batch_size, :, :].argmax(dim=-1)
+        tokens = self._target_generator.output
         return [self.target_model.tokenizer.decode(token) for token in tokens]
 
     def target_input(self):
         """
         Return the input to the target model
         """
-        tokens = self._target_invoker.input['input_ids'][0]
+        tokens = self.target_model.tokenizer.encode(self.source.prompt)
         return [self.target_model.tokenizer.decode(token) for token in tokens]
 
     def source_input(self):
         """
         Return the input to the source model
         """
-        tokens = self._source_invoker.input['input_ids'][0]
+        tokens = self.source_model.tokenizer.encode(self.source.prompt)
         return [self.source_model.tokenizer.decode(token) for token in tokens]
