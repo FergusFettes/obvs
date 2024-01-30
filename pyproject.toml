@@ -23,9 +23,10 @@ ipykernel = "^6.28.0"
 torch = "^2.1.2"
 torchvision = "^0.16.2"
 transformers = "^4.37.1"
-nnsight = "^0.1.15"
+nnsight = "^0.1.17"
 plotly = "^5.18.0"
 transformer-lens = "^1.14.0"
+tiktoken = "^0.5.2"
 
 [tool.poetry.dev-dependencies]
 # Everything below here is alphabetically sorted
