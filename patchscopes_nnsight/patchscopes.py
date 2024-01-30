@@ -61,6 +61,7 @@ class TargetContext(SourceContext):
     Parameters identical to the source context, with the addition of a mapping function
     """
     mapping_function: Callable[[torch.Tensor], torch.Tensor] = lambda x: x
+    max_new_tokens: int = 10
 
     @staticmethod
     def from_source(
@@ -92,6 +93,7 @@ class Patchscope:
     target_model: LanguageModel = field(init=False)
 
     batch_size: int = 0
+    REMOTE: bool = False
 
     _source_hidden_state: torch.Tensor = field(init=False)
     _source_invoker: Invoker.Invoker = field(init=False)
@@ -106,12 +108,13 @@ class Patchscope:
         """
         Get the source representation
         """
-        with self.source_model.invoke(self.source.prompt) as source_invoker:
-            self._source_hidden_state = (
-                self.source_model
-                .transformer.h[self.source.layer]   # Layer syntax for each model is different in nnsight
-                .output[0][self.batch_size, self.source.position, :]    # Get the hidden state at position i
-            ).save()
+        with self.source_model.forward(remote=self.REMOTE) as runner:
+            with runner.invoke(self.source.prompt) as source_invoker:
+                self._source_hidden_state = (
+                    self.source_model
+                    .transformer.h[self.source.layer]   # Layer syntax for each model is different in nnsight
+                    .output[0][self.batch_size, self.source.position, :]
+                ).save()
         self._source_invoker = source_invoker
 
     def map(self):
@@ -124,13 +127,17 @@ class Patchscope:
         """
         Patch the target representation
         """
-        with self.target_model.invoke(self.target.prompt) as invoker:
-            (
-                self.target_model
-                .transformer.h[self.target.layer]                               # Layer syntax for each model is different in nnsight
-                .output[0][self.batch_size, self.target.position, :]            # Get the hidden state at position i*
-            ) = self._source_hidden_state
-        self._target_invoker = invoker
+        with self.target_model.generate(
+            remote=self.REMOTE,
+            max_new_tokens=self.target.max_new_tokens,
+        ) as runner:
+            with runner.invoke(self.target.prompt) as invoker:
+                (
+                    self.target_model
+                    .transformer.h[self.target.layer]                               # Layer syntax for each model is different in nnsight
+                    .output[0][self.batch_size, self.target.position, :]            # Get the hidden state at position i*
+                ) = self._source_hidden_state
+        self._target_invoke = invoker
 
     def run(self):
         """
