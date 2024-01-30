@@ -41,10 +41,10 @@ class SourceContext:
     """
     Source context for the patchscope
     """
-    prompt: Sequence[str]
-    position: int
-    model_name: str
-    layer: int
+    prompt: Sequence[str] = ""
+    position: int = 0
+    model_name: str = "gpt2"
+    layer: int = 0
     device: str = "cuda:0"
 
     def __repr__(self):

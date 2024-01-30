@@ -29,8 +29,7 @@ top_k_probs = []
 for i in range(1, 12):
     print(f"Layer {i}")
 
-    source_context.layer = i
-    patchscope = Patchscope(source=source_context, target=target_context)
+    patchscope.source.layer = i
     patchscope.run()
 
     probs = patchscope.probabilities()
