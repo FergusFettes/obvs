@@ -21,7 +21,8 @@
 # - M = M*
 # - ℓ = ℓ*
 # - f = identity function
-# would be indistinguishable from a forward pass.
+# this be indistinguishable from a forward pass.
+#
 # The most simple one that does something interesting is the logit lens, where:
 # - ℓ = range(L*)
 # - ℓ* = L*
@@ -131,6 +132,17 @@ class Patchscope:
             ) = self._source_hidden_state
         self._target_invoker = invoker
 
+    def run(self):
+        """
+        Run the patchscope
+        """
+        self.source_forward_pass()
+        self.map()
+        self.target_forward_pass()
+
+    # ################
+    # Helper functions
+    # ################
     def top_k_tokens(self, k=10):
         """
         Return the top k tokens from the target model
@@ -183,11 +195,3 @@ class Patchscope:
         """
         tokens = self._source_invoker.input['input_ids'][0]
         return [self.source_model.tokenizer.decode(token) for token in tokens]
-
-    def run(self):
-        """
-        Run the patchscope
-        """
-        self.source_forward_pass()
-        self.map()
-        self.target_forward_pass()

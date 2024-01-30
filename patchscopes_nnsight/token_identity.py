@@ -1,4 +1,4 @@
-from patchscopes_nnsight.patchsopes import SourceContext, TargetContext, Patchscope
+from patchscopes_nnsight.patchscopes import SourceContext, TargetContext, Patchscope
 
 # Set up source config for the token identity example
 prompt = "John and Mary are walking together. John said to"
