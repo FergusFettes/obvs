@@ -7,7 +7,7 @@ source_context = SourceContext(
     prompt=prompt,  # Example input text
     model_name="gpt2",
     position=-1,  # Last token (assuming single input)
-    layer=0,  # 10th layer (logit lense actually tests each layer, we'll start with one.)
+    layer=0,  # Logit lense will run on each layer.
     device="cpu"
 )
 
@@ -24,13 +24,12 @@ john_token = patchscope.target_model.tokenizer.encode(" John")
 mary_token = patchscope.target_model.tokenizer.encode(" Mary")
 john_probs = []
 mary_probs = []
-top_k = []
-top_k_probs = []
-for i in range(0, 11):
+# top_k = []
+# top_k_probs = []
+for i in range(0, 12):
     print(f"Layer {i}")
 
-    source_context.layer = i
-    patchscope = Patchscope(source=source_context, target=target_context)
+    patchscope.source.layer = i
     patchscope.run()
 
     probs = patchscope.probabilities()
@@ -41,17 +40,17 @@ for i in range(0, 11):
     # top_k_probs.append(patchscope.top_k_probs(5))
 
 
-print(top_k)
+# print(top_k)
 # print(top_k_probs)
 print(john_probs)
 print(mary_probs)
 
-print(
-    list(zip(
-        patchscope.target_input(),
-        patchscope.output()
-    ))
-)
+# print(
+#     list(zip(
+#         patchscope.target_input(),
+#         patchscope.output()
+#     ))
+# )
 
 # Plot the john and mary probs by layer as lines with plotly
 import plotly.graph_objects as go
