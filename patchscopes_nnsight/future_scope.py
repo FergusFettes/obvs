@@ -7,14 +7,14 @@ source_context = SourceContext(
     prompt=prompt,  # Example input text
     model_name="gpt2",
     position=-1,
-    layer=-1,
+    layer=-2,
     device="cpu"
 )
 
 
 target_context = TargetContext.from_source(source_context)
 target_context.prompt = "The following tokens were found found in a corrupt hard drive. Please describe the tokens after the colon in a few sentences to help us recover them: "
-target_context.layer = -2
+target_context.layer = -3
 
 patchscope = Patchscope(source=source_context, target=target_context)
 patchscope.run()
