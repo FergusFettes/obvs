@@ -30,10 +30,9 @@
 
 import torch
 from dataclasses import dataclass, field
-from typing import Callable, Sequence, Optional
+from typing import Callable, Sequence, Optional, List
 
 from nnsight import LanguageModel
-from nnsight.contexts import Invoker, Runner
 
 
 @dataclass
@@ -96,8 +95,7 @@ class Patchscope:
     REMOTE: bool = False
 
     _source_hidden_state: torch.Tensor = field(init=False)
-    _target_output: Invoker.Invoker = field(init=False)
-    _target_generator: Runner.Runner = field(init=False)
+    _target_outputs: List[torch.Tensor] = field(init=False, default_factory=list)
 
     def __post_init__(self):
         # Load models
@@ -124,27 +122,30 @@ class Patchscope:
 
     def target_forward_pass(self):
         """
-        Patch the target representation
+        Patch the target representation.
+        In order to support multi-token generation,
+        we save the output for max_new_tokens iterations.
         """
         with self.target_model.generate(
             remote=self.REMOTE,
             max_new_tokens=self.target.max_new_tokens,
         ) as runner:
-            with runner.invoke(self.target.prompt) as _:
+            with runner.invoke(self.target.prompt) as invoker:
                 (
                     self.target_model
                     .transformer.h[self.target.layer]                               # Layer syntax for each model is different in nnsight
                     .output[0][self.batch_size, self.target.position, :]            # Get the hidden state at position i*
                 ) = self._source_hidden_state
 
-                self._target_output = self.target_model.lm_head.output[0].save()
-
-        self._target_generator = runner
+                for generation in range(self.target.max_new_tokens):
+                    self._target_outputs.append(self.target_model.lm_head.output[0].save())
+                    invoker.next()
 
     def run(self):
         """
         Run the patchscope
         """
+        self._target_outputs = []
         self.source_forward_pass()
         self.map()
         self.target_forward_pass()
@@ -156,14 +157,14 @@ class Patchscope:
         """
         Return the top k tokens from the target model
         """
-        tokens = self._target_output.value[self.batch_size, self.target.position, :].topk(k).indices.tolist()
+        tokens = self._target_outputs[0].value[self.target.position, :].topk(k).indices.tolist()
         return [self.target_model.tokenizer.decode(token) for token in tokens]
 
     def top_k_logits(self, k=10):
         """
         Return the top k logits from the target model
         """
-        return self._target_output.value[self.batch_size, self.target.position, :].topk(k).values.tolist()
+        return self._target_outputs[0].value[self.target.position, :].topk(k).values.tolist()
 
     def top_k_probs(self, k=10):
         """
@@ -176,7 +177,7 @@ class Patchscope:
         """
         Return the logits from the target model
         """
-        return self._target_output.value[self.batch_size, self.target.position, :]
+        return self._target_outputs[0].value[:, :]
 
     def probabilities(self):
         """
@@ -188,7 +189,20 @@ class Patchscope:
         """
         Return the generated output from the target model
         """
-        tokens = self._target_generator.output[0]
+        tokens = self.logits().argmax(dim=-1)
+        return [self.target_model.tokenizer.decode(token) for token in tokens]
+
+    def full_output(self):
+        """
+        Return the generated output from the target model
+        This is a bit hacky. Its not super well supported. I have to concatenate all the inputs and add the input tokens to them.
+        """
+        tensors_list = [self._target_outputs[i].value for i in range(len(self._target_outputs))]
+        tokens = torch.cat(tensors_list, dim=0)
+        tokens = tokens.argmax(dim=-1).tolist()
+        input_tokens = self.target_model.tokenizer.encode(self.target.prompt)
+        tokens.insert(0, ' ')
+        tokens[:len(input_tokens)] = input_tokens
         return [self.target_model.tokenizer.decode(token) for token in tokens]
 
     def target_input(self):

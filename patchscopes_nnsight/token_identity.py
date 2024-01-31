@@ -13,7 +13,7 @@ source_context = SourceContext(
 # Copy source config to target config and modify
 target_context = TargetContext.from_source(source_context)
 target_context.layer = 0  # Layer remains equal to source context throughout
-target_context.prompt = "cat->cat; 135->135; hello->hello; black->black; shoe->shoe; start->start; mean->mean; ?"
+target_context.prompt = "cat -> cat; 135 -> 135; hello -> hello; black -> black; shoe -> shoe; start -> start; mean -> mean; ?"
 
 
 # Print the source and target contexts
@@ -39,7 +39,7 @@ for i in range(1, 12):
     patchscope.target.layer = i
     patchscope.run()
 
-    probs = patchscope.probabilities()
+    probs = patchscope.probabilities()[-1]
     john_probs.append(probs[john_token].item())
     mary_probs.append(probs[mary_token].item())
 
@@ -58,6 +58,8 @@ print(
         patchscope.output()
     ))
 )
+
+print(patchscope.full_output())
 
 # Plot the john and mary probs by layer as lines with plotly
 import plotly.graph_objects as go

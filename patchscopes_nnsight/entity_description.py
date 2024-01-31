@@ -21,11 +21,11 @@ source_context = SourceContext(
 # Constructing a few-shot target prompt based on the source entity
 target_context = TargetContext.from_source(source_context)
 target_context.layer = -1
-target_context.max_new_tokens = 30
+target_context.max_new_tokens = 10
 target_context.prompt = (
     "Egyptian Pyramids: monumental structures of ancient Egypt, most of which are situated on the Giza Plateau; "
     "Roman Colosseum: a large amphitheatre in Rome, Italy; "
-    "Taj Mahal: an ivory-white marble mausoleum on the right bank of the Yamuna river in the Indian city of Agra; "
+    "Taj Mahal: an ivory-white marble mausoleum on the right bank of the Yamuna river in the Indian city of Agra;"
 )
 
 # Now, setup the patchscope with the defined contexts
@@ -47,10 +47,11 @@ for layer in range(1, layers - 1):
     patchscope.run()
 
     # Retrieve and save the generated description for the entity
-    generated_description = patchscope.output()
+    generated_description = patchscope.full_output()
+    full_joined = "".join(generated_description)
+    print(f"Layer {layer} - Generated Description: {full_joined}")
     joined = "".join(generated_description[target_length - 1:])
     entity_descriptions_by_layer.append(joined)
-    print(f"Layer {layer} - Generated Description: {joined}")
 
 
 joined = "\n".join(entity_descriptions_by_layer)

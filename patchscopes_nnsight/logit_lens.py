@@ -32,7 +32,7 @@ for i in range(1, 12):
     patchscope.source.layer = i
     patchscope.run()
 
-    probs = patchscope.probabilities()
+    probs = patchscope.probabilities()[-1]
     john_probs.append(probs[john_token].item())
     mary_probs.append(probs[mary_token].item())
 
@@ -51,6 +51,8 @@ print(
         patchscope.output()
     ))
 )
+
+print(patchscope.full_output())
 
 # Plot the john and mary probs by layer as lines with plotly
 import plotly.graph_objects as go
