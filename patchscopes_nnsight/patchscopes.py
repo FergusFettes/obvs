@@ -188,7 +188,7 @@ class Patchscope:
         """
         Return the generated output from the target model
         """
-        tokens = self._target_generator.output
+        tokens = self._target_generator.output[0]
         return [self.target_model.tokenizer.decode(token) for token in tokens]
 
     def target_input(self):
