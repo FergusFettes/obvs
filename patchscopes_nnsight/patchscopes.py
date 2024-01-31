@@ -135,7 +135,7 @@ class Patchscope:
                     self.target_model
                     .transformer.h[self.target.layer]                               # Layer syntax for each model is different in nnsight
                     .output[0][self.batch_size, self.target.position, :]            # Get the hidden state at position i*
-                ) = self._source_hidden_state
+                ) = self._source_hidden_state.value
 
                 for generation in range(self.target.max_new_tokens):
                     self._target_outputs.append(self.target_model.lm_head.output[0].save())
