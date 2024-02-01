@@ -15,6 +15,8 @@ class TestPatchscope:
     def test_equal_full_patch(patchscope):
         patchscope.source.prompt = "a dog is a dog. a cat is a"
         patchscope.target.prompt = "a dog is a dog. a rat is a"
+        patchscope.source.position = None
+        patchscope.target.position = None
         patchscope.target.max_new_tokens = 1
         patchscope.get_position_and_layer()
 
@@ -24,6 +26,21 @@ class TestPatchscope:
 
         # Assert the target has been patched to think a rat is a cat
         assert "cat" in decoded
+
+    @staticmethod
+    def test_equal_full_patch_all_layers(patchscope):
+        patchscope.source.prompt = "a dog is a dog. a cat is a"
+        patchscope.target.prompt = "a dog is a dog. a rat is a"
+        patchscope.target.max_new_tokens = 1
+        patchscope.get_position_and_layer()
+
+        for i in range(patchscope.n_layers):
+            patchscope.run()
+            output = patchscope._target_outputs[0].value.argmax(dim=-1)[-1].tolist()
+            decoded = patchscope.target_model.tokenizer.decode(output)
+
+            # Assert the target has been patched to think a rat is a cat
+            assert "cat" in decoded
 
     @staticmethod
     def test_equal_single_patch(patchscope):
@@ -56,6 +73,26 @@ class TestPatchscope:
         assert "cat" in decoded
 
     @staticmethod
+    def test_single_patch_early(patchscope):
+        patchscope.source.prompt = "a dog is a dog. a rat is a rat. a cat is a"
+        patchscope.target.prompt = "a dog is a dog. a rat is a"
+        patchscope.target.max_new_tokens = 1
+        patchscope.source.layer = 3
+        patchscope.target.layer = 3
+
+        # Get the index of 'cat'
+        patchscope.source.position = patchscope.find_in_source(" cat")
+        # Patch the first instance of "rat"
+        patchscope.target.position = patchscope.find_in_target(" rat")
+
+        patchscope.run()
+        output = patchscope._target_outputs[0].value.argmax(dim=-1)[-1].tolist()
+        decoded = patchscope.target_model.tokenizer.decode(output)
+
+        # Assert the target has been patched to think a rat is a cat
+        assert "cat" in decoded
+
+    @staticmethod
     def test_multi_token_generation(patchscope):
         patchscope.source.prompt = "a dog is a dog. a rat is a rat. a cat"
         patchscope.target.prompt = "a dog is a dog. a rat is a rat. a cat"
@@ -70,10 +107,15 @@ class TestPatchscope:
     def test_multi_token_generation_with_patch(patchscope):
         patchscope.source.prompt = "a dog is a dog. a rat is a rat. a cat"
         patchscope.target.prompt = "a dog is a dog. a bat is a bat. a rat"
+        patchscope.source.position = None
+        patchscope.target.position = None
         patchscope.get_position_and_layer()
         patchscope.target.max_new_tokens = 4
+
+        patchscope.source.layer = 3
+        patchscope.target.layer = 3
 
         patchscope.run()
 
         # Assert the target has been patched to think a rat is a cat
-        assert "a cat is a cat" in "".join(patchscope.full_output())
+        assert "a rat is a cat" in "".join(patchscope.full_output())
