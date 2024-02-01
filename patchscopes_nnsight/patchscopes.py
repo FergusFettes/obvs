@@ -102,6 +102,9 @@ class Patchscope(PatchscopesBase):
     _target_outputs: List[torch.Tensor] = field(init=False, default_factory=list)
 
     def __post_init__(self):
+        print(self.source)
+        print(self.target)
+
         # Load models
         self.source_model = LanguageModel(self.source.model_name, device_map=self.source.device)
         self.target_model = LanguageModel(self.target.model_name, device_map=self.target.device)

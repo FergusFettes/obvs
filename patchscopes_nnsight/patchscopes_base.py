@@ -53,12 +53,14 @@ class PatchscopesBase(ABC):
         return [self.target_model.tokenizer.decode(token) for token in self.target_tokens]
 
     def get_position_and_layer(self):
-        # If no position or layer is specified, take them all
-        self.source.position = range(len(self.source_tokens))
-        # self.source.layer = range(len(self.source_model.transformer.h))
+        if self.source.position is None:
+            # If no position or layer is specified, take them all
+            self.source.position = range(len(self.source_tokens))
+            # self.source.layer = range(len(self.source_model.transformer.h))
 
-        self.target.position = range(len(self.target_tokens))
-        # self.target.layer = range(self.target_model.config.n_layer)
+        if self.target.position is None:
+            self.target.position = range(len(self.target_tokens))
+            # self.target.layer = range(self.target_model.config.n_layer)
 
     def top_k_tokens(self, k=10):
         """
@@ -112,3 +114,24 @@ class PatchscopesBase(ABC):
         tokens[:len(input_tokens)] = input_tokens
         return [self.target_model.tokenizer.decode(token) for token in tokens]
 
+    def find_in_source(self, substring):
+        """
+        Find the position of the target tokens in the source tokens
+        """
+        if substring not in self.source.prompt:
+            raise ValueError(f"{substring} not in {self.source.prompt}")
+        tokens = self.source_model.tokenizer.encode(substring)
+        return self.source_tokens.index(tokens[0])
+
+    def find_in_target(self, substring):
+        """
+        Find the position of the target tokens in the source tokens
+        """
+        if substring not in self.target.prompt:
+            raise ValueError(f"{substring} not in {self.target.prompt}")
+        tokens = self.target_model.tokenizer.encode(substring)
+        return self.target_tokens.index(tokens[0])
+
+    @property
+    def n_layers(self):
+        return len(self.target_model.transformer.h)
