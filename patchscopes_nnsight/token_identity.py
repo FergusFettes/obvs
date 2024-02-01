@@ -1,63 +1,65 @@
 from patchscopes_nnsight.patchscopes import SourceContext, TargetContext, Patchscope
 
-# Set up source config for the token identity example
-prompt = "John and Mary are walking together. John said to"
+remote = True
+
+# We are testing when the concept of 'Mary' is loaded into the final token.
+prompt = "John was walking with Mary. John said to"
 source_context = SourceContext(
-    prompt=prompt,  # Example input text
-    model_name="gpt2",
-    position=-1,  # Last token (assuming single input)
-    layer=0,  # 10th layer (logit lense actually tests each layer, we'll start with one.)
-    device="cpu"
+    prompt=prompt,
+    position=-1,
+    layer=0,
+    device="cpu",
+    model_name="gpt2-xl" if remote else "gpt2",
 )
 
-# Copy source config to target config and modify
 target_context = TargetContext.from_source(source_context)
-target_context.layer = 0  # Layer remains equal to source context throughout
-target_context.prompt = "cat -> cat; 135 -> 135; hello -> hello; black -> black; shoe -> shoe; start -> start; mean -> mean; ?"
 
-
-# Print the source and target contexts
-print(source_context)
-print(target_context)
+# To do this, we patch the final token into the target prompt at the 'x' position
+target_context.prompt = "cat is cat; 135 is 135; hello is hello; black is black; shoe is shoe; x is"
 
 # Create the patchscope
 patchscope = Patchscope(source=source_context, target=target_context)
+patchscope.REMOTE = remote
+
+# We need to find the position of x and set the target position
+start_position = patchscope.find_in_target(" x")
+# Patch the item before the target so it thinks that x is the next token
+target_context.position = start_position
+
 
 # Prepare to gather data
 john_token = patchscope.target_model.tokenizer.encode(" John")
 mary_token = patchscope.target_model.tokenizer.encode(" Mary")
+
+# Run the patchscope for each target layer
 john_probs = []
 mary_probs = []
 top_k = []
 top_k_probs = []
 
-# Run the patchscope for each layer
-for i in range(1, 12):
-    print(f"Layer {i}")
-
-    patchscope.source.layer = i
-    patchscope.target.layer = i
+# Run the parchscope for each target layer
+patchscope.target.layer = 20
+step_size = patchscope.n_layers // 5
+for j in range(patchscope.n_layers - 5, patchscope.n_layers):
+    print(f"Source Layer {j}")
+    patchscope.source.layer = j
     patchscope.run()
-
-    probs = patchscope.probabilities()[-1]
+    probs = patchscope.probabilities()[start_position]
     john_probs.append(probs[john_token].item())
     mary_probs.append(probs[mary_token].item())
-
     top_k.append(patchscope.top_k_tokens(5))
     top_k_probs.append(patchscope.top_k_probs(5))
+    print("".join(patchscope.full_output()))
 
+output = patchscope._target_outputs[0].value.argmax(dim=-1).tolist()
+decoded = [patchscope.target_model.tokenizer.decode(token) for token in output]
 
 print(top_k)
-# print(top_k_probs)
 print(john_probs)
 print(mary_probs)
 
-print(
-    list(zip(
-        patchscope.target_input(),
-        patchscope.output()
-    ))
-)
+for target, output in zip(patchscope.target_words, patchscope.output()):
+    print(f"({target} -> {output})")
 
 print(patchscope.full_output())
 
