@@ -34,6 +34,8 @@ from typing import Callable, Sequence, Optional, List
 
 from nnsight import LanguageModel
 
+from patchscopes_nnsight.patchscopes_base import PatchscopesBase
+
 
 @dataclass
 class SourceContext:
@@ -41,9 +43,9 @@ class SourceContext:
     Source context for the patchscope
     """
     prompt: Sequence[str] = ""
-    position: int = 0
+    position: Optional[Sequence[int]] = None
+    layer: int = -1
     model_name: str = "gpt2"
-    layer: int = 0
     device: str = "cuda:0"
 
     def __repr__(self):
@@ -65,7 +67,8 @@ class TargetContext(SourceContext):
     @staticmethod
     def from_source(
             source: SourceContext,
-            mapping_function: Optional[Callable[[torch.Tensor], torch.Tensor]] = None
+            mapping_function: Optional[Callable[[torch.Tensor], torch.Tensor]] = None,
+            max_new_tokens: int = 10
     ):
         return TargetContext(
             prompt=source.prompt,
@@ -73,6 +76,7 @@ class TargetContext(SourceContext):
             model_name=source.model_name,
             layer=source.layer,
             mapping_function=mapping_function or (lambda x: x),
+            max_new_tokens=max_new_tokens,
             device=source.device
         )
 
@@ -80,18 +84,18 @@ class TargetContext(SourceContext):
         return (
             f"TargetContext(prompt={self.prompt}, position={self.position}, "
             f"model_name={self.model_name}, layer={self.layer}, device={self.device}, "
+            f"max_new_tokens={self.max_new_tokens},"
             f"mapping_function={self.mapping_function})"
         )
 
 
 @dataclass
-class Patchscope:
+class Patchscope(PatchscopesBase):
     source: SourceContext
     target: TargetContext
     source_model: LanguageModel = field(init=False)
     target_model: LanguageModel = field(init=False)
 
-    batch_size: int = 0
     REMOTE: bool = False
 
     _source_hidden_state: torch.Tensor = field(init=False)
@@ -102,6 +106,8 @@ class Patchscope:
         self.source_model = LanguageModel(self.source.model_name, device_map=self.source.device)
         self.target_model = LanguageModel(self.target.model_name, device_map=self.target.device)
 
+        self.get_position_and_layer()
+
     def source_forward_pass(self):
         """
         Get the source representation
@@ -111,7 +117,7 @@ class Patchscope:
                 self._source_hidden_state = (
                     self.source_model
                     .transformer.h[self.source.layer]   # Layer syntax for each model is different in nnsight
-                    .output[0][self.batch_size, self.source.position, :]
+                    .output[0][:, self.source.position, :]
                 ).save()
 
     def map(self):
@@ -133,8 +139,8 @@ class Patchscope:
             with runner.invoke(self.target.prompt) as invoker:
                 (
                     self.target_model
-                    .transformer.h[self.target.layer]                               # Layer syntax for each model is different in nnsight
-                    .output[0][self.batch_size, self.target.position, :]            # Get the hidden state at position i*
+                    .transformer.h[self.target.layer]
+                    .output[0][:, self.target.position, :]
                 ) = self._source_hidden_state.value
 
                 for generation in range(self.target.max_new_tokens):
@@ -149,72 +155,3 @@ class Patchscope:
         self.source_forward_pass()
         self.map()
         self.target_forward_pass()
-
-    # ################
-    # Helper functions
-    # ################
-    def top_k_tokens(self, k=10):
-        """
-        Return the top k tokens from the target model
-        """
-        tokens = self._target_outputs[0].value[self.target.position, :].topk(k).indices.tolist()
-        return [self.target_model.tokenizer.decode(token) for token in tokens]
-
-    def top_k_logits(self, k=10):
-        """
-        Return the top k logits from the target model
-        """
-        return self._target_outputs[0].value[self.target.position, :].topk(k).values.tolist()
-
-    def top_k_probs(self, k=10):
-        """
-        Return the top k probabilities from the target model
-        """
-        logits = self.top_k_logits(k)
-        return [torch.nn.functional.softmax(torch.tensor(logit), dim=-1).item() for logit in logits]
-
-    def logits(self):
-        """
-        Return the logits from the target model
-        """
-        return self._target_outputs[0].value[:, :]
-
-    def probabilities(self):
-        """
-        Return the probabilities from the target model
-        """
-        return torch.softmax(self.logits(), dim=-1)
-
-    def output(self):
-        """
-        Return the generated output from the target model
-        """
-        tokens = self.logits().argmax(dim=-1)
-        return [self.target_model.tokenizer.decode(token) for token in tokens]
-
-    def full_output(self):
-        """
-        Return the generated output from the target model
-        This is a bit hacky. Its not super well supported. I have to concatenate all the inputs and add the input tokens to them.
-        """
-        tensors_list = [self._target_outputs[i].value for i in range(len(self._target_outputs))]
-        tokens = torch.cat(tensors_list, dim=0)
-        tokens = tokens.argmax(dim=-1).tolist()
-        input_tokens = self.target_model.tokenizer.encode(self.target.prompt)
-        tokens.insert(0, ' ')
-        tokens[:len(input_tokens)] = input_tokens
-        return [self.target_model.tokenizer.decode(token) for token in tokens]
-
-    def target_input(self):
-        """
-        Return the input to the target model
-        """
-        tokens = self.target_model.tokenizer.encode(self.source.prompt)
-        return [self.target_model.tokenizer.decode(token) for token in tokens]
-
-    def source_input(self):
-        """
-        Return the input to the source model
-        """
-        tokens = self.source_model.tokenizer.encode(self.source.prompt)
-        return [self.source_model.tokenizer.decode(token) for token in tokens]
