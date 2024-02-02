@@ -186,10 +186,11 @@ class PatchscopesBase(ABC):
         source.prompt = self.target_model.tokenizer.decode(tokens_a)
         source.position = position
 
-        print(f"Getting two representations with settings: {source}")
+        print(f"Getting representation with settings: {source}")
         activations_a = self.get_source_hidden_state(source)
 
         source.prompt = self.target_model.tokenizer.decode(tokens_b)
+        print(f"Getting representation with settings: {source}")
         activations_b = self.get_source_hidden_state(source)
 
         return activations_a, activations_b
