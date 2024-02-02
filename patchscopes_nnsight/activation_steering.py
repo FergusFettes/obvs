@@ -64,9 +64,7 @@ patchscope.REMOTE = remote
 
 add_vector, subtract_vector = patchscope.get_activation_pair("sadness", "happiness")
 
-patchscope.target.mapping_function = lambda h: activation_steering_mapping(
-    h, add_vector, subtract_vector
-)
+patchscope.target.mapping_function = lambda h: activation_steering_mapping(h, add_vector, subtract_vector)
 
 patchscope.run()
 print(patchscope.full_output())
