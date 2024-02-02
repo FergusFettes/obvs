@@ -33,6 +33,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Sequence, Optional, List
 
 from nnsight import LanguageModel
+from nnsight.contexts import Invoker
 
 from patchscopes_nnsight.patchscopes_base import PatchscopesBase
 
@@ -126,12 +127,26 @@ class Patchscope(PatchscopesBase):
     def _source_forward_pass(self, source: SourceContext):
         with self.source_model.forward(remote=self.REMOTE) as runner:
             with runner.invoke(source.prompt) as _:
-                hidden_state = (
-                    self.source_model
-                    .transformer.h[source.layer]   # Layer syntax for each model is different in nnsight
-                    .output[0][:, source.position, :]
-                ).save()
-        return hidden_state
+                if self.source.model_name == "gpt2":
+                    return self._gpt_source_invoker(source)
+                elif self.source.model_name == "llama2":
+                    return self._llama2_source_invoker(source)
+                else:
+                    raise ValueError(f"Model {self.source.model_name} not supported")
+
+    def _gpt_source_invoker(self, source: SourceContext):
+        return (
+            self.source_model
+            .transformer.h[source.layer]
+            .output[0][:, source.position, :]
+        ).save()
+
+    def _llama2_source_invoker(self, source: SourceContext):
+        return (
+            self.source_model
+            .model.layers[source.layer]
+            .output[0][:, source.position, :]
+        ).save()
 
     def map(self):
         """
@@ -150,15 +165,34 @@ class Patchscope(PatchscopesBase):
             max_new_tokens=self.target.max_new_tokens,
         ) as runner:
             with runner.invoke(self.target.prompt) as invoker:
-                (
-                    self.target_model
-                    .transformer.h[self.target.layer]
-                    .output[0][:, self.target.position, :]
-                ) = self._source_hidden_state.value
+                if self.target.model_name == "gpt2":
+                    self._gpt_target_invoker(invoker)
+                elif self.target.model_name == "llama2":
+                    self._llama2_target_invoker(invoker)
+                else:
+                    raise ValueError(f"Model {self.target.model_name} not supported")
 
-                for generation in range(self.target.max_new_tokens):
-                    self._target_outputs.append(self.target_model.lm_head.output[0].save())
-                    invoker.next()
+    def _gpt_target_invoker(self, invoker: Invoker.Invoker):
+        (
+            self.target_model
+            .transformer.h[self.target.layer]
+            .output[0][:, self.target.position, :]
+        ) = self._source_hidden_state.value
+
+        for generation in range(self.target.max_new_tokens):
+            self._target_outputs.append(self.target_model.lm_head.output[0].save())
+            invoker.next()
+
+    def _llama2_target_invoker(self, invoker: Invoker.Invoker):
+        (
+            self.target_model
+            .model.layers[self.target.layer]
+            .output[0][:, self.target.position, :]
+        ) = self._source_hidden_state.value
+
+        for generation in range(self.target.max_new_tokens):
+            self._target_outputs.append(self.target_model.lm_head.output[0].save())
+            invoker.next()
 
     def run(self):
         """

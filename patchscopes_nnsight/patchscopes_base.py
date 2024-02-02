@@ -143,7 +143,18 @@ class PatchscopesBase(ABC):
 
     @property
     def n_layers(self):
+        if self.target.model_type == "gpt2":
+            return self._n_layers_gpt
+        elif self.target.model_type == "llama2":
+            return self._n_layers_llama2
+
+    @property
+    def _n_layers_gpt(self):
         return len(self.target_model.transformer.h)
+
+    @property
+    def _n_layers_llama2(self):
+        return len(self.target_model.model.layers)
 
     def get_activation_pair(self, string_a: str, string_b: Optional[str] = None, bomb: bool = True):
         """
