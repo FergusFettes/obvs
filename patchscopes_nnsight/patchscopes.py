@@ -84,7 +84,7 @@ class TargetContext(SourceContext):
         return (
             f"TargetContext(prompt={self.prompt}, position={self.position}, "
             f"model_name={self.model_name}, layer={self.layer}, device={self.device}, "
-            f"max_new_tokens={self.max_new_tokens},"
+            f"max_new_tokens={self.max_new_tokens}, "
             f"mapping_function={self.mapping_function})"
         )
 
@@ -115,13 +115,23 @@ class Patchscope(PatchscopesBase):
         """
         Get the source representation
         """
+        self._source_hidden_state = self._source_forward_pass(self.source)
+
+    def get_source_hidden_state(self, source: SourceContext):
+        """
+        Get the requested hidden state from the source model
+        """
+        return self._source_forward_pass(source)
+
+    def _source_forward_pass(self, source: SourceContext):
         with self.source_model.forward(remote=self.REMOTE) as runner:
-            with runner.invoke(self.source.prompt) as _:
-                self._source_hidden_state = (
+            with runner.invoke(source.prompt) as _:
+                hidden_state = (
                     self.source_model
-                    .transformer.h[self.source.layer]   # Layer syntax for each model is different in nnsight
-                    .output[0][:, self.source.position, :]
+                    .transformer.h[source.layer]   # Layer syntax for each model is different in nnsight
+                    .output[0][:, source.position, :]
                 ).save()
+        return hidden_state
 
     def map(self):
         """

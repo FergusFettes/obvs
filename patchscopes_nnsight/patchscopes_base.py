@@ -1,5 +1,7 @@
-# Import abstract base class
+from typing import Optional
+from copy import deepcopy
 from abc import ABC, abstractmethod
+
 import torch
 
 
@@ -101,7 +103,7 @@ class PatchscopesBase(ABC):
         tokens = self.logits().argmax(dim=-1)
         return [self.target_model.tokenizer.decode(token) for token in tokens]
 
-    def full_output(self):
+    def full_output_words(self):
         """
         Return the generated output from the target model
         This is a bit hacky. Its not super well supported. I have to concatenate all the inputs and add the input tokens to them.
@@ -113,6 +115,13 @@ class PatchscopesBase(ABC):
         tokens.insert(0, ' ')
         tokens[:len(input_tokens)] = input_tokens
         return [self.target_model.tokenizer.decode(token) for token in tokens]
+
+    def full_output(self):
+        """
+        Return the generated output from the target model
+        This is a bit hacky. Its not super well supported. I have to concatenate all the inputs and add the input tokens to them.
+        """
+        return "".join(self.full_output_words())
 
     def find_in_source(self, substring):
         """
@@ -135,3 +144,32 @@ class PatchscopesBase(ABC):
     @property
     def n_layers(self):
         return len(self.target_model.transformer.h)
+
+    def get_activation_pair(self, string_a: str, string_b: Optional[str] = None):
+        """
+        Get the activations for two strings for activation steering
+        """
+        tokens_a = self.target_model.tokenizer.encode(string_a)
+        # If string_b is not provided, use spaces
+        if string_b is None:
+            string_b = " "
+        tokens_b = self.target_model.tokenizer.encode(string_b)
+
+        # Pad the shortest string with spaces
+        if len(tokens_a) > len(tokens_b):
+            tokens_b = tokens_b + self.target_model.tokenizer.encode(" ") * (len(tokens_a) - len(tokens_b))
+        elif len(tokens_a) < len(tokens_b):
+            tokens_a = tokens_a + self.target_model.tokenizer.encode(" ") * (len(tokens_b) - len(tokens_a))
+
+        assert len(tokens_a) == len(tokens_b)
+        position = range(len(tokens_a))
+
+        source = deepcopy(self.source)
+        source.prompt = self.target_model.tokenizer.decode(tokens_a)
+        source.position = position
+        activations_a = self.get_source_hidden_state(source)
+
+        source.prompt = self.target_model.tokenizer.decode(tokens_b)
+        activations_b = self.get_source_hidden_state(source)
+
+        return activations_a, activations_b
