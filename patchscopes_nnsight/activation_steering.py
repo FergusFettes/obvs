@@ -27,7 +27,7 @@ target_context = TargetContext.from_source(source_context)
 target_context.max_new_tokens = 30
 
 
-def activation_steering_mapping(h, α, β, added_vector, subtracted_vector):
+def activation_steering_mapping(h, added_vector, subtracted_vector, α: float = 5., β: float = 6.):
     """
     Applies activation steering, adding vectors to
     the corresponding 'y' positions within the larger tensor 'h'.
@@ -62,13 +62,10 @@ def activation_steering_mapping(h, α, β, added_vector, subtracted_vector):
 patchscope = Patchscope(source=source_context, target=target_context)
 patchscope.REMOTE = remote
 
-love_vector, hate_vector = patchscope.get_activation_pair("sadness", "happiness")
-
-# Define coefficients. We will use the same for each
-coef = 5.0
+add_vector, subtract_vector = patchscope.get_activation_pair("sadness", "happiness")
 
 patchscope.target.mapping_function = lambda h: activation_steering_mapping(
-    h, coef, coef, love_vector, hate_vector
+    h, add_vector, subtract_vector
 )
 
 patchscope.run()
@@ -77,7 +74,7 @@ print(patchscope.full_output())
 
 # Switch them around
 patchscope.target.mapping_function = lambda h: activation_steering_mapping(
-    h, coef, coef, hate_vector, love_vector
+    h, subtract_vector, add_vector
 )
 
 patchscope.run()

@@ -54,13 +54,13 @@ class PatchscopesBase(ABC):
         """
         return [self.target_model.tokenizer.decode(token) for token in self.target_tokens]
 
-    def get_position_and_layer(self):
-        if self.source.position is None:
+    def get_position_and_layer(self, force=True):
+        if self.source.position is None or force:
             # If no position or layer is specified, take them all
             self.source.position = range(len(self.source_tokens))
             # self.source.layer = range(len(self.source_model.transformer.h))
 
-        if self.target.position is None:
+        if self.target.position is None or force:
             self.target.position = range(len(self.target_tokens))
             # self.target.layer = range(self.target_model.config.n_layer)
 
@@ -145,15 +145,30 @@ class PatchscopesBase(ABC):
     def n_layers(self):
         return len(self.target_model.transformer.h)
 
-    def get_activation_pair(self, string_a: str, string_b: Optional[str] = None):
+    def get_activation_pair(self, string_a: str, string_b: Optional[str] = None, bomb: bool = True):
         """
-        Get the activations for two strings for activation steering
+        Get the activations for two strings for activation steering.
+        :param string_a: The first string to compare
+        :param string_b: The second string to compare
+        :param bomb: If True, the string will be repeated to fill the source prompt
+        :return: The activations for the two strings
         """
+        if not string_a.startswith(" "):
+            string_a = " " + string_a
         tokens_a = self.target_model.tokenizer.encode(string_a)
+
         # If string_b is not provided, use spaces
         if string_b is None:
             string_b = " "
+        elif not string_b.startswith(" "):
+            string_b = " " + string_b
         tokens_b = self.target_model.tokenizer.encode(string_b)
+
+        # If bomb and the source prompt is a multiple of string_a, duplicate it to fill
+        if bomb and len(self.source_tokens) // len(tokens_a) > 1:
+            tokens_a = self.bomb(tokens_a, len(self.source_tokens) - 1)
+        if not string_b == " " and bomb and len(self.source_tokens) // len(tokens_b) > 1:
+            tokens_b = self.bomb(tokens_b, len(self.source_tokens) - 1)
 
         # Pad the shortest string with spaces
         if len(tokens_a) > len(tokens_b):
@@ -161,15 +176,27 @@ class PatchscopesBase(ABC):
         elif len(tokens_a) < len(tokens_b):
             tokens_a = tokens_a + self.target_model.tokenizer.encode(" ") * (len(tokens_b) - len(tokens_a))
 
+        print(f"Activation pair created: tokens_a: {len(tokens_a)}, tokens_b: {len(tokens_b)}, source_tokens: {len(self.source_tokens)}")
+
         assert len(tokens_a) == len(tokens_b)
+        assert len(tokens_a) <= len(self.source_tokens)
         position = range(len(tokens_a))
 
         source = deepcopy(self.source)
         source.prompt = self.target_model.tokenizer.decode(tokens_a)
         source.position = position
+
+        print(f"Getting two representations with settings: {source}")
         activations_a = self.get_source_hidden_state(source)
 
         source.prompt = self.target_model.tokenizer.decode(tokens_b)
         activations_b = self.get_source_hidden_state(source)
 
         return activations_a, activations_b
+
+    def bomb(self, tokens, target_length):
+        """
+        Take a list of tokens and repeat it with padding to fill the target length
+        """
+        tokens = (tokens) * (target_length // len(tokens))
+        return tokens[:target_length]

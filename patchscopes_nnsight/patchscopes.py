@@ -42,7 +42,7 @@ class SourceContext:
     """
     Source context for the patchscope
     """
-    prompt: Sequence[str] = ""
+    prompt: Sequence[str] = "<|endoftext|>"
     position: Optional[Sequence[int]] = None
     layer: int = -1
     model_name: str = "gpt2"
