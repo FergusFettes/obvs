@@ -143,9 +143,9 @@ class PatchscopesBase(ABC):
 
     @property
     def n_layers(self):
-        if self.target.model_type == "gpt2":
+        if "gpt" in self.target.model_name:
             return self._n_layers_gpt
-        elif self.target.model_type == "llama2":
+        elif "llama" in self.target.model_name:
             return self._n_layers_llama2
 
     @property
