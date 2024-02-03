@@ -30,7 +30,7 @@
 
 import torch
 from dataclasses import dataclass, field
-from typing import Callable, Sequence, Optional, List
+from typing import Callable, Sequence, Optional, List, Any
 
 from nnsight import LanguageModel
 from nnsight.contexts import Invoker
@@ -97,6 +97,8 @@ class Patchscope(PatchscopesBase):
     source_model: LanguageModel = field(init=False)
     target_model: LanguageModel = field(init=False)
 
+    tokenizer: Any = field(init=False)
+
     REMOTE: bool = False
 
     _source_hidden_state: torch.Tensor = field(init=False)
@@ -109,6 +111,8 @@ class Patchscope(PatchscopesBase):
         # Load models
         self.source_model = LanguageModel(self.source.model_name, device_map=self.source.device)
         self.target_model = LanguageModel(self.target.model_name, device_map=self.target.device)
+
+        self.tokenizer = self.source_model.tokenizer
 
         self.get_position_and_layer()
 

@@ -31,28 +31,28 @@ class PatchscopesBase(ABC):
         """
         Return the source tokens
         """
-        return self.source_model.tokenizer.encode(self.source.prompt)
+        return self.tokenizer.encode(self.source.prompt)
 
     @property
     def target_tokens(self):
         """
         Return the target tokens
         """
-        return self.target_model.tokenizer.encode(self.target.prompt)
+        return self.tokenizer.encode(self.target.prompt)
 
     @property
     def source_words(self):
         """
         Return the input to the source model
         """
-        return [self.source_model.tokenizer.decode(token) for token in self.source_tokens]
+        return [self.tokenizer.decode(token) for token in self.source_tokens]
 
     @property
     def target_words(self):
         """
         Return the input to the target model
         """
-        return [self.target_model.tokenizer.decode(token) for token in self.target_tokens]
+        return [self.tokenizer.decode(token) for token in self.target_tokens]
 
     def get_position_and_layer(self, force=True):
         if self.source.position is None or force:
@@ -69,7 +69,7 @@ class PatchscopesBase(ABC):
         Return the top k tokens from the target model
         """
         tokens = self._target_outputs[0].value[self.target.position, :].topk(k).indices.tolist()
-        return [self.target_model.tokenizer.decode(token) for token in tokens]
+        return [self.tokenizer.decode(token) for token in tokens]
 
     def top_k_logits(self, k=10):
         """
@@ -101,7 +101,7 @@ class PatchscopesBase(ABC):
         Return the generated output from the target model
         """
         tokens = self.logits().argmax(dim=-1)
-        return [self.target_model.tokenizer.decode(token) for token in tokens]
+        return [self.tokenizer.decode(token) for token in tokens]
 
     def full_output_words(self):
         """
@@ -111,10 +111,10 @@ class PatchscopesBase(ABC):
         tensors_list = [self._target_outputs[i].value for i in range(len(self._target_outputs))]
         tokens = torch.cat(tensors_list, dim=0)
         tokens = tokens.argmax(dim=-1).tolist()
-        input_tokens = self.target_model.tokenizer.encode(self.target.prompt)
+        input_tokens = self.tokenizer.encode(self.target.prompt)
         tokens.insert(0, ' ')
         tokens[:len(input_tokens)] = input_tokens
-        return [self.target_model.tokenizer.decode(token) for token in tokens]
+        return [self.tokenizer.decode(token) for token in tokens]
 
     def full_output(self):
         """
@@ -129,7 +129,7 @@ class PatchscopesBase(ABC):
         """
         if substring not in self.source.prompt:
             raise ValueError(f"{substring} not in {self.source.prompt}")
-        tokens = self.source_model.tokenizer.encode(substring)
+        tokens = self.tokenizer.encode(substring)
         return self.source_tokens.index(tokens[0])
 
     def find_in_target(self, substring):
@@ -138,7 +138,7 @@ class PatchscopesBase(ABC):
         """
         if substring not in self.target.prompt:
             raise ValueError(f"{substring} not in {self.target.prompt}")
-        tokens = self.target_model.tokenizer.encode(substring)
+        tokens = self.tokenizer.encode(substring)
         return self.target_tokens.index(tokens[0])
 
     @property
@@ -166,14 +166,14 @@ class PatchscopesBase(ABC):
         """
         if not string_a.startswith(" "):
             string_a = " " + string_a
-        tokens_a = self.target_model.tokenizer.encode(string_a)
+        tokens_a = self.tokenizer.encode(string_a)
 
         # If string_b is not provided, use spaces
         if string_b is None:
             string_b = " "
         elif not string_b.startswith(" "):
             string_b = " " + string_b
-        tokens_b = self.target_model.tokenizer.encode(string_b)
+        tokens_b = self.tokenizer.encode(string_b)
 
         # If bomb and the source prompt is a multiple of string_a, duplicate it to fill
         if bomb and len(self.source_tokens) // len(tokens_a) > 1:
@@ -183,9 +183,9 @@ class PatchscopesBase(ABC):
 
         # Pad the shortest string with spaces
         if len(tokens_a) > len(tokens_b):
-            tokens_b = tokens_b + self.target_model.tokenizer.encode(" ") * (len(tokens_a) - len(tokens_b))
+            tokens_b = tokens_b + self.tokenizer.encode(" ") * (len(tokens_a) - len(tokens_b))
         elif len(tokens_a) < len(tokens_b):
-            tokens_a = tokens_a + self.target_model.tokenizer.encode(" ") * (len(tokens_b) - len(tokens_a))
+            tokens_a = tokens_a + self.tokenizer.encode(" ") * (len(tokens_b) - len(tokens_a))
 
         print(f"Activation pair created: tokens_a: {len(tokens_a)}, tokens_b: {len(tokens_b)}, source_tokens: {len(self.source_tokens)}")
 
@@ -194,13 +194,13 @@ class PatchscopesBase(ABC):
         position = range(len(tokens_a))
 
         source = deepcopy(self.source)
-        source.prompt = self.target_model.tokenizer.decode(tokens_a)
+        source.prompt = self.tokenizer.decode(tokens_a)
         source.position = position
 
         print(f"Getting representation with settings: {source}")
         activations_a = self.get_source_hidden_state(source)
 
-        source.prompt = self.target_model.tokenizer.decode(tokens_b)
+        source.prompt = self.tokenizer.decode(tokens_b)
         print(f"Getting representation with settings: {source}")
         activations_b = self.get_source_hidden_state(source)
 
