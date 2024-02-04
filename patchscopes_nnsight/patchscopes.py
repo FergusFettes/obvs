@@ -34,7 +34,7 @@ from typing import Callable, Sequence, Optional, List, Any
 
 from nnsight import LanguageModel
 from nnsight.contexts import Invoker
-from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig, LlamaForCausalLM
 
 from patchscopes_nnsight.patchscopes_base import PatchscopesBase
 
@@ -127,26 +127,34 @@ class Patchscope(PatchscopesBase):
         self.source_model = LanguageModel(model_name, device_map=device)
         self.target_model = LanguageModel(model_name, device_map=device)
 
+    # def _load_llama2(self, model_name: str, device: str):
+    #     bnb_config = BitsAndBytesConfig(
+    #         load_in_4bit=True,
+    #         bnb_4bit_compute_dtype=torch.float16,
+    #         bnb_4bit_quant_type="nf4",
+    #         bnb_4bit_use_double_quant=True,
+    #     )
+    #     self.source_model = LanguageModel(AutoModelForCausalLM.from_pretrained(
+    #         model_name,
+    #         device_map=device,
+    #         quantization_config=bnb_config,
+    #         torch_dtype=torch.float16,
+    #         trust_remote_code=True,
+    #     ))
+    #     self.target_model = LanguageModel(AutoModelForCausalLM.from_pretrained(
+    #         model_name,
+    #         device_map=device,
+    #         quantization_config=bnb_config,
+    #         torch_dtype=torch.float16,
+    #         trust_remote_code=True,
+    #     ))
+
     def _load_llama2(self, model_name: str, device: str):
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True,
-        )
-        self.source_model = LanguageModel(AutoModelForCausalLM.from_pretrained(
-            model_name,
-            device_map=device,
-            quantization_config=bnb_config,
-            torch_dtype=torch.float16,
-            trust_remote_code=True,
+        self.source_model = LanguageModel(LlamaForCausalLM.from_pretrained(
+            model_name, torch_dtype=torch.float16, device_map=device,
         ))
-        self.target_model = LanguageModel(AutoModelForCausalLM.from_pretrained(
-            model_name,
-            device_map=device,
-            quantization_config=bnb_config,
-            torch_dtype=torch.float16,
-            trust_remote_code=True,
+        self.target_model = LanguageModel(LlamaForCausalLM.from_pretrained(
+            model_name, torch_dtype=torch.float16, device_map=device,
         ))
 
     def source_forward_pass(self):
