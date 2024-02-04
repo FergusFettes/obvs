@@ -191,7 +191,7 @@ class PatchscopesBase(ABC):
             string_b = " "
         elif not string_b.startswith(" "):
             string_b = " " + string_b
-        if "lama2" in self.source.model_name:
+        if "lama" in self.source.model_name:
             string_b = " " + string_b
 
         tokens_b = self.tokenizer.encode(string_b)
