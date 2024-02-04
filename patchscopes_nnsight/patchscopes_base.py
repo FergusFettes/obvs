@@ -164,33 +164,8 @@ class PatchscopesBase(ABC):
         :param bomb: If True, the string will be repeated to fill the source prompt
         :return: The activations for the two strings
         """
-        if not string_a.startswith(" "):
-            string_a = " " + string_a
-        tokens_a = self.tokenizer.encode(string_a)
+        tokens_a, tokens_b = self.justify(string_a, string_b, bomb)
 
-        # If string_b is not provided, use spaces
-        if string_b is None:
-            string_b = " "
-        elif not string_b.startswith(" "):
-            string_b = " " + string_b
-        tokens_b = self.tokenizer.encode(string_b)
-
-        # If bomb and the source prompt is a multiple of string_a, duplicate it to fill
-        if bomb and len(self.source_tokens) // len(tokens_a) > 1:
-            tokens_a = self.bomb(tokens_a, len(self.source_tokens) - 1)
-        if not string_b == " " and bomb and len(self.source_tokens) // len(tokens_b) > 1:
-            tokens_b = self.bomb(tokens_b, len(self.source_tokens) - 1)
-
-        # Pad the shortest string with spaces
-        if len(tokens_a) > len(tokens_b):
-            tokens_b = tokens_b + self.tokenizer.encode(" ") * (len(tokens_a) - len(tokens_b))
-        elif len(tokens_a) < len(tokens_b):
-            tokens_a = tokens_a + self.tokenizer.encode(" ") * (len(tokens_b) - len(tokens_a))
-
-        print(f"Activation pair created: tokens_a: {len(tokens_a)}, tokens_b: {len(tokens_b)}, source_tokens: {len(self.source_tokens)}")
-
-        assert len(tokens_a) == len(tokens_b)
-        assert len(tokens_a) <= len(self.source_tokens)
         position = range(len(tokens_a))
 
         source = deepcopy(self.source)
@@ -205,6 +180,40 @@ class PatchscopesBase(ABC):
         activations_b = self.get_source_hidden_state(source)
 
         return activations_a, activations_b
+
+    def justify(self, string_a: str, string_b: Optional[str] = None, bomb: bool = True):
+        if not string_a.startswith(" "):
+            string_a = " " + string_a
+        tokens_a = self.tokenizer.encode(string_a)
+
+        # If string_b is not provided, use spaces
+        if string_b is None:
+            string_b = " "
+        elif not string_b.startswith(" "):
+            string_b = " " + string_b
+        if "llama2" in self.source.model_name:
+            string_b = " " + string_b
+
+        tokens_b = self.tokenizer.encode(string_b)
+
+        # If bomb and the source prompt is a multiple of string_a, duplicate it to fill
+        if bomb and len(self.source_tokens) // len(tokens_a) > 1:
+            tokens_a = self.bomb(tokens_a, len(self.source_tokens) - 1)
+        if not string_b == " " and bomb and len(self.source_tokens) // len(tokens_b) > 1:
+            tokens_b = self.bomb(tokens_b, len(self.source_tokens) - 1)
+
+        # Pad the shortest string with spaces
+        if len(tokens_a) > len(tokens_b):
+            tokens_b = tokens_b + self.tokenizer.encode(" ", add_special_tokens=False) * (len(tokens_a) - len(tokens_b))
+        elif len(tokens_a) < len(tokens_b):
+            tokens_a = tokens_a + self.tokenizer.encode(" ", add_special_tokens=False) * (len(tokens_b) - len(tokens_a))
+
+        print(f"Activation pair created: tokens_a: {len(tokens_a)}, tokens_b: {len(tokens_b)}, source_tokens: {len(self.source_tokens)}")
+
+        assert len(tokens_a) == len(tokens_b)
+        assert len(tokens_a) <= len(self.source_tokens)
+
+        return tokens_a, tokens_b
 
     def bomb(self, tokens, target_length):
         """

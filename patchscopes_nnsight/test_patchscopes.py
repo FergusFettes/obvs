@@ -10,6 +10,14 @@ def patchscope():
     return Patchscope(source_context, target_context)
 
 
+# Make a patchscope fixture so we only have to load the model once. (This is slow)
+@pytest.fixture(scope="session")
+def patchscope_llama():
+    source_context = SourceContext(device="cpu", model_name="meta-llama/Llama-2-70b-hf")
+    target_context = TargetContext.from_source(source_context, max_new_tokens=1)
+    return Patchscope(source_context, target_context)
+
+
 class TestPatchscope:
     @staticmethod
     def test_equal_full_patch(patchscope):
@@ -119,3 +127,46 @@ class TestPatchscope:
 
         # Assert the target has been patched to think a rat is a cat
         assert "a rat is a cat" in "".join(patchscope.full_output())
+
+    @staticmethod
+    def test_justify_gpt(patchscope):
+        patchscope.source.prompt = " 1 2 3 4 5 6 7 8 9 0"
+        assert len(patchscope.source_tokens) == 10
+        tokens_a, tokens_b = patchscope.justify(" 1")
+
+        assert len(tokens_a) == 9
+        assert len(tokens_b) == 9
+
+        tokens_a, tokens_b = patchscope.justify(" 1", " 1 2 3")
+        assert len(tokens_a) == 9
+        assert len(tokens_b) == 9
+
+        tokens_a, tokens_b = patchscope.justify(" 1", bomb=False)
+        assert len(tokens_a) == 1
+        assert len(tokens_b) == 1
+
+        tokens_a, tokens_b = patchscope.justify(" 1", " 1 2 3", bomb=False)
+        assert len(tokens_a) == 3
+        assert len(tokens_b) == 3
+
+    @staticmethod
+    def test_justify_llama(patchscope_llama):
+        patchscope = patchscope_llama
+        patchscope.source.prompt = " 1 2 3 4 5 6 7 8 9 0"
+        assert len(patchscope.source_tokens) == 21
+        tokens_a, tokens_b = patchscope.justify(" 1")
+
+        assert len(tokens_a) == 18
+        assert len(tokens_b) == 18
+
+        tokens_a, tokens_b = patchscope.justify(" 1", " 1 2 3")
+        assert len(tokens_a) == 18
+        assert len(tokens_b) == 18
+
+        tokens_a, tokens_b = patchscope.justify(" 1", bomb=False)
+        assert len(tokens_a) == 3
+        assert len(tokens_b) == 3
+
+        tokens_a, tokens_b = patchscope.justify(" 1", " 1 2 3", bomb=False)
+        assert len(tokens_a) == 7
+        assert len(tokens_b) == 7

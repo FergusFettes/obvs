@@ -1,7 +1,6 @@
-# You will need to 
-# git clone https://github.com/fergusFettes/obvs
-# cd obvs && git checkout llama2_patchscopes_nnsight
-# apt-get install make
+setup_remote:
+	ssh -p $(PORT) root@$(HOST) "git clone https://github.com/fergusFettes/obvs && cd obvs && git checkout llama2_patchscopes_nnsight && apt-get install make"
+
 all:
 	make vast_install
 
@@ -11,6 +10,7 @@ vast_install:
 	make python_installs
 
 add_deadsnakes:
+	# For some reason you just need to run this twice and it works?
 	add-apt-repository ppa:deadsnakes/ppa
 
 apt_installs:
@@ -23,3 +23,4 @@ python_installs:
 
 watch:
 	watch -n 0.1 -d "nvidia-smi"
+
