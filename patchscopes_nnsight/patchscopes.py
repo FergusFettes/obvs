@@ -109,8 +109,12 @@ class Patchscope(PatchscopesBase):
         print(self.target)
 
         # Load models
+        # If llama2, we need to use the exact same model for both source and target, cause otherwise we run out of VRAM
         self.source_model = LanguageModel(self.source.model_name, device_map=self.source.device)
-        self.target_model = LanguageModel(self.target.model_name, device_map=self.target.device)
+        if "lama" in self.source.model_name:
+            self.target_model = self.source_model
+        else:
+            self.target_model = LanguageModel(self.target.model_name, device_map=self.target.device)
 
         self.tokenizer = self.source_model.tokenizer
 
