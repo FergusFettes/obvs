@@ -131,7 +131,7 @@ class Patchscope(PatchscopesBase):
     def _source_forward_pass(self, source: SourceContext):
         with self.source_model.forward(remote=self.REMOTE) as runner:
             with runner.invoke(source.prompt) as _:
-                if self.source.model_name == "gpt2":
+                if "gpt2" in self.source.model_name:
                     return self._gpt_source_invoker(source)
                 elif self.source.model_name == "llama2":
                     return self._llama2_source_invoker(source)
@@ -169,7 +169,7 @@ class Patchscope(PatchscopesBase):
             max_new_tokens=self.target.max_new_tokens,
         ) as runner:
             with runner.invoke(self.target.prompt) as invoker:
-                if self.target.model_name == "gpt2":
+                if "gpt2" in self.source.model_name:
                     self._gpt_target_invoker(invoker)
                 elif self.target.model_name == "llama2":
                     self._llama2_target_invoker(invoker)
