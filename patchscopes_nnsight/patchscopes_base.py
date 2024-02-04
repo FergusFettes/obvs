@@ -184,7 +184,7 @@ class PatchscopesBase(ABC):
     def justify(self, string_a: str, string_b: Optional[str] = None, bomb: bool = True):
         if not string_a.startswith(" "):
             string_a = " " + string_a
-        tokens_a = self.tokenizer.encode(string_a)
+        tokens_a = self.tokenizer.encode(string_a, add_special_tokens=False)
 
         # If string_b is not provided, use spaces
         if string_b is None:
@@ -194,7 +194,7 @@ class PatchscopesBase(ABC):
         if "lama" in self.source.model_name:
             string_b = " " + string_b
 
-        tokens_b = self.tokenizer.encode(string_b)
+        tokens_b = self.tokenizer.encode(string_b, add_special_tokens=False)
 
         # If bomb and the source prompt is a multiple of string_a, duplicate it to fill
         if bomb and len(self.source_tokens) // len(tokens_a) > 1:

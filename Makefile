@@ -1,8 +1,9 @@
+default: vast_install
+
+
 setup_remote:
 	ssh -p $(PORT) root@$(HOST) "git clone https://github.com/fergusFettes/obvs && cd obvs && git checkout llama2_patchscopes_nnsight && apt-get install make"
 
-all:
-	make vast_install
 
 vast_install:
 	make add_deadsnakes
