@@ -133,7 +133,7 @@ class Patchscope(PatchscopesBase):
             with runner.invoke(source.prompt) as _:
                 if "gpt2" in self.source.model_name:
                     return self._gpt_source_invoker(source)
-                elif self.source.model_name == "llama2":
+                elif "lama2" in self.source.model_name:
                     return self._llama2_source_invoker(source)
                 else:
                     raise ValueError(f"Model {self.source.model_name} not supported")
@@ -171,7 +171,7 @@ class Patchscope(PatchscopesBase):
             with runner.invoke(self.target.prompt) as invoker:
                 if "gpt2" in self.source.model_name:
                     self._gpt_target_invoker(invoker)
-                elif self.target.model_name == "llama2":
+                elif "lama2" in self.source.model_name:
                     self._llama2_target_invoker(invoker)
                 else:
                     raise ValueError(f"Model {self.target.model_name} not supported")

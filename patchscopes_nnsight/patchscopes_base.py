@@ -145,7 +145,7 @@ class PatchscopesBase(ABC):
     def n_layers(self):
         if "gpt" in self.target.model_name:
             return self._n_layers_gpt
-        elif "llama" in self.target.model_name:
+        elif "lama" in self.target.model_name:
             return self._n_layers_llama2
 
     @property
@@ -191,7 +191,7 @@ class PatchscopesBase(ABC):
             string_b = " "
         elif not string_b.startswith(" "):
             string_b = " " + string_b
-        if "llama2" in self.source.model_name:
+        if "lama2" in self.source.model_name:
             string_b = " " + string_b
 
         tokens_b = self.tokenizer.encode(string_b)
