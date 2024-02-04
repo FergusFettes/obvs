@@ -11,11 +11,11 @@ vast_install:
 	make python_installs
 
 add_deadsnakes:
-	sudo add-apt-repository ppa:deadsnakes/ppa
+	add-apt-repository ppa:deadsnakes/ppa
 
 apt_installs:
-	sudo apt-get update && sudo apt-get upgrade -y
-	DEBIAN_FRONTEND=noninteractive sudo apt-get install python3.11 neovim -y
+	apt-get update && apt-get upgrade -y
+	DEBIAN_FRONTEND=noninteractive apt-get install python3.11 neovim -y
 
 python_installs:
 	pip install poetry
