@@ -4,6 +4,6 @@
 vast_install:
 	pip install poetry
 	sudo add-apt-repository ppa:deadsnakes/ppa
-	sudo apt-get update && sudo apt-get upgrade
-	sudo apt-get install python3.11 neovim
+	sudo apt-get update && sudo apt-get upgrade -y
+	sudo apt-get install python3.11 neovim -y
 	poetry install
