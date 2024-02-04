@@ -1,13 +1,17 @@
 # You will need to 
 # git clone https://github.com/fergusFettes/obvs
-# cd obvs && git checkout multitoken_remote
+# cd obvs && git checkout llama2_patchscopes_nnsight
+# apt-get install make
 all:
 	make vast_install
 
 vast_install:
-	sudo add-apt-repository ppa:deadsnakes/ppa
+	make add_deadsnakes
 	make apt_installs
 	make python_installs
+
+add_deadsnakes:
+	sudo add-apt-repository ppa:deadsnakes/ppa
 
 apt_installs:
 	sudo apt-get update && sudo apt-get upgrade -y
