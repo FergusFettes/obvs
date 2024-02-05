@@ -1,6 +1,16 @@
 default: vast_install
 
 
+help:
+	@echo "HOST=\$VAST_HOST PORT=\$VAST_PORT make setup_remote"
+	@echo "scp -P \$VAST_PORT -r test_script.py root@\$VAST_HOST:/root/obvs"
+	@echo "ssh -p \$VAST_PORT root@\$VAST_HOST"
+	@echo "cd obvs && make vast_install"
+	@echo "if you need a huggingface model: poetry run huggingface-cli login"
+	@echo "poetry run python test_script.py"
+
+
+
 setup_remote:
 	ssh -p $(PORT) root@$(HOST) "git clone https://github.com/fergusFettes/obvs && cd obvs && git checkout llama2_patchscopes_nnsight && apt-get install make"
 

@@ -198,9 +198,9 @@ class PatchscopesBase(ABC):
 
         # If bomb and the source prompt is a multiple of string_a, duplicate it to fill
         if bomb and len(self.source_tokens) // len(tokens_a) > 1:
-            tokens_a = self.bomb(tokens_a, len(self.source_tokens) - 1)
+            tokens_a = self.bomb(tokens_a, len(self.source_tokens) - 5)
         if not string_b == " " and bomb and len(self.source_tokens) // len(tokens_b) > 1:
-            tokens_b = self.bomb(tokens_b, len(self.source_tokens) - 1)
+            tokens_b = self.bomb(tokens_b, len(self.source_tokens) - 5)
 
         # Pad the shortest string with spaces
         if len(tokens_a) > len(tokens_b):
