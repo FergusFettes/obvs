@@ -316,8 +316,11 @@ class TestPatchscope:
         assert "a rat is a cat" in patchscope.full_output()
 
     @staticmethod
-    def test_token_position_short_target():
-        assert False
+    def test_token_position_short_target(patchscope):
+        patchscope.source.prompt = "dog is dog; cat is cat; dog is dog; cat is cat; dog is"
+        patchscope.target.prompt = "x is"
+        patchscope.source.position = -1
+        patchscope.target.position = -1
 
     @staticmethod
     def test_target_output_length_short_target():

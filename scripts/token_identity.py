@@ -82,7 +82,6 @@ def main(
     model_name = model.replace("/", "-")
     filename = f"{model_name}_{word}"
 
-    # prompt = "I went to the store but I didn't have any cash, so I had to use the ATM. Thankfully, this is the USA so I found one easy."
     # Setup source and target context with the simplest configuration
     source_context = SourceContext(
         prompt=prompt,  # Example input text
@@ -93,7 +92,7 @@ def main(
 
     target_context = TargetContext.from_source(source_context)
     target_context.prompt = (
-        "".join(random.choices(string.ascii_lowercase, k=100))
+        "bat is bat; 135 is 135; hello is hello; black is black; shoe is shoe; x is"
     )
     target_context.max_new_tokens = 1
     patchscope = Patchscope(source=source_context, target=target_context)
