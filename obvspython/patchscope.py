@@ -168,7 +168,7 @@ class Patchscope(PatchscopeBase):
         """
         self._source_hidden_state = getattr(
             getattr(self.source_model, self.MODEL_SOURCE), self.LAYER_SOURCE
-        )[self.source.layer].output[0][:, self.source.position, :].save()
+        )[self.source.layer].output[0].t[self.source.position].save()
 
     def map(self) -> None:
         """
@@ -197,7 +197,7 @@ class Patchscope(PatchscopeBase):
         (
             getattr(getattr(self.target_model, self.MODEL_TARGET), self.LAYER_TARGET)[
                 self.target.layer
-            ].output[0][:, self.target.position, :]
+            ].output[0].t[self.target.position]
         ) = self._mapped_hidden_state
 
         self._target_outputs.append(self.target_model.lm_head.output[0].save())
@@ -215,10 +215,9 @@ class Patchscope(PatchscopeBase):
             self.target_forward_pass()
             return
 
-        # When we do batching, if the target prompt is shorter than the source prompt, it is padded.
-        # This means we have to adjust the position of the target token.
-        diff = len(self.source_tokens) - len(self.target_tokens)
-        self.target.position += diff
+        print(self.target.position)
+        self.offset_target_position()
+        print(self.target.position)
 
         with self.target_model.generate(
             remote=self.REMOTE,
@@ -228,10 +227,35 @@ class Patchscope(PatchscopeBase):
                 self.manipulate_source()
             self.map()
             with runner.invoke(self.target.prompt) as _:
+                input = self.target_model.transformer.wte.input.save()
                 # NB, we may someday want to ablate all the padded outputs as they might mess up generation
                 # for layer in getattr(getattr(self.target_model, self.MODEL_TARGET), self.LAYER_TARGET):
                 #     layer.output[0][:, :diff, :] = 0
                 self.manipulate_target()
+        print(f"Input shape: {input.shape}")
+
+    def offset_target_position(self) -> None:
+        """
+        During batching, the final generation tokens are padded to be max(len(source), len(target)).
+
+        This is fine for most things, but it means that the tokens in the output generation might not
+        be where we expect them.
+        """
+        # If the target position is negative, we dont need to adjust it.
+        if self.target.position < 0:
+            return
+
+        diff = len(self.source_tokens) - len(self.target_tokens)
+        # If the target position is a range, offset them all
+        if isinstance(self.target.position, range):
+            self.target.position = range(
+                self.target.position.start + diff,
+                self.target.position.stop + diff,
+            )
+            return
+
+        # If the target position is a single value, offset it
+        self.target.position += diff
 
     def over(self, source_layers: Sequence[int], target_layers: Sequence[int]) -> list[torch.Tensor]:
         """

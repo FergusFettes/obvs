@@ -3,6 +3,7 @@ from __future__ import annotations
 from obvspython.patchscope import ModelLoader
 
 from nnsight import LanguageModel
+from unittest.mock import patch
 
 
 class TestPatchscope:
@@ -317,11 +318,33 @@ class TestPatchscope:
 
     @staticmethod
     def test_token_position_short_target(patchscope):
-        patchscope.source.prompt = "dog is dog; cat is cat; dog is dog; cat is cat; dog is"
+        patchscope.source.prompt = "bat is bat; 135 is 135; hello is hello; black is black; shoe is shoe; cat is"
         patchscope.target.prompt = "x is"
+        patchscope.source.layer = -1
+        patchscope.target.layer = -1
         patchscope.source.position = -1
+
+        # If we patch at the end, it works fine
         patchscope.target.position = -1
 
-    @staticmethod
-    def test_target_output_length_short_target():
-        assert False
+        patchscope.run()
+        # Sanity check the output is as long as the SOURCE prompt, because its been padded
+        assert len(patchscope._output_tokens()) == len(patchscope.source_tokens)
+        assert len(patchscope._target_outputs[0]) == len(patchscope.source_tokens)
+
+        decoded = "".join(patchscope.tokenizer.decode(patchscope._output_tokens()))
+        print(repr(decoded))
+        # Assert cat is at the end
+        assert "cat" in decoded[-10:]
+
+        # But if we patch earlier
+        patchscope.target.position = 1
+        # Sanity check the output is as long as the SOURCE prompt, because its been padded
+        assert len(patchscope._output_tokens()) == len(patchscope.source_tokens)
+        assert len(patchscope._target_outputs[0]) == len(patchscope.source_tokens)
+        decoded = "".join(patchscope.tokenizer.decode(patchscope._output_tokens()))
+        print(repr(decoded))
+        # Assert cat is at the end
+        assert "cat" in decoded[-10:]
+
+        # It also works fine! Because I fixed it!
