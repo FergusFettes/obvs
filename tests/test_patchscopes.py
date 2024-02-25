@@ -56,9 +56,9 @@ class TestPatchscope:
         patchscope = Patchscope(source, target)
 
         tensor = torch.tensor(np.random.rand(3, 3))
-        patchscope._source_hidden_state = tensor
+        patchscope._source_hidden_states = [tensor]
         patchscope.map()
-        assert patchscope._mapped_hidden_state.equal(tensor)
+        assert next(patchscope._mapped_hidden_states).equal(tensor)
 
     @staticmethod
     def test_patchscope_map_transpose():
@@ -68,9 +68,9 @@ class TestPatchscope:
         patchscope = Patchscope(source, target)
 
         tensor = torch.tensor(np.random.rand(3, 3))
-        patchscope._source_hidden_state = tensor
+        patchscope._source_hidden_states = [tensor]
         patchscope.map()
-        assert patchscope._mapped_hidden_state.equal(tensor.T)
+        assert next(patchscope._mapped_hidden_states).equal(tensor.T)
 
     @staticmethod
     def test_source_tokens(patchscope):
@@ -88,18 +88,18 @@ class TestPatchscope:
         patchscope.source.layer = 0
         patchscope.source_forward_pass()
 
-        assert patchscope._source_hidden_state.value.shape[0] == 1  # Batch size, always 1
-        assert patchscope._source_hidden_state.value.shape[1] == len(
+        assert patchscope._source_hidden_states[0].value.shape[0] == 1  # Batch size, always 1
+        assert len(patchscope._source_hidden_states) == len(
             patchscope.source_tokens,
         )  # Number of tokens
         assert (
-            patchscope._source_hidden_state.value.shape[2]
+            patchscope._source_hidden_states[0].value.shape[1]
             == patchscope.source_model.transformer.embed_dim
         )  # Embedding dimension
 
         patchscope.source.prompt = "a dog is a dog"
         patchscope.init_positions(force=True)
         patchscope.source_forward_pass()
-        assert patchscope._source_hidden_state.value.shape[1] == len(
+        assert len(patchscope._source_hidden_states) == len(
             patchscope.source_tokens,
         )  # Number of tokens

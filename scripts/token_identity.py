@@ -60,28 +60,7 @@ def run_over_all_layers(patchscope, target_tokens, values):
     return source_layers, target_layers, values, outputs
 
 
-def upate_saved_values(values):
-    # Save the values to a file
-    np.save("scripts/values.npy", values)
-
-
-@app.command()
-def main(
-    word: str = typer.Argument(" boat", help="The expected next token."),
-    model: str = "gpt2",
-    prompt: str = typer.Option(
-        "if its on the road, its a car. if its in the air, its a plane. if its on the sea, its a",
-        help="Source Prompt",
-    ),
-):
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Generating definition for word: {word} using model: {model}")
-    if model in model_names:
-        model = model_names[model]
-
-    model_name = model.replace("/", "-")
-    filename = f"{model_name}_{word}"
-
+def setup(prompt, model, device, word):
     # Setup source and target context with the simplest configuration
     source_context = SourceContext(
         prompt=prompt,  # Example input text
@@ -113,6 +92,27 @@ def main(
         patchscope.source.position = -1
         patchscope.target.position = -1
 
+    return target_tokens, patchscope
+
+
+@app.command()
+def main(
+    word: str = typer.Argument(" boat", help="The expected next token."),
+    model: str = "gpt2",
+    prompt: str = typer.Option(
+        "if its on the road, its a car. if its in the air, its a plane. if its on the sea, its a",
+        help="Source Prompt",
+    ),
+):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Generating definition for word: {word} using model: {model}")
+    if model in model_names:
+        model = model_names[model]
+
+    model_name = model.replace("/", "-")
+    filename = f"{model_name}_{word}"
+
+    target_tokens, patchscope = setup(prompt, model, device, word)
     if Path(f"scripts/{filename}.npy").exists():
         values = np.load(f"scripts/{filename}.npy")
     else:

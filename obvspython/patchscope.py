@@ -166,15 +166,14 @@ class Patchscope(PatchscopeBase):
 
         NB: This is seperated out from the source_forward_pass method to allow for batching.
         """
-        self._source_hidden_state = getattr(
-            getattr(self.source_model, self.MODEL_SOURCE), self.LAYER_SOURCE
-        )[self.source.layer].output[0].t[self.source.position].save()
+        output = getattr(getattr(self.source_model, self.MODEL_SOURCE), self.LAYER_SOURCE)[self.source.layer].output[0]
+        self._source_hidden_states = [output.t[position].save() for position in self.source.position]
 
     def map(self) -> None:
         """
         Apply the mapping function to the source representation
         """
-        self._mapped_hidden_state = self.target.mapping_function(self._source_hidden_state)
+        self._mapped_hidden_states = map(self.target.mapping_function, self._source_hidden_states)
 
     def target_forward_pass(self) -> None:
         """
@@ -194,11 +193,11 @@ class Patchscope(PatchscopeBase):
             self.manipulate_target()
 
     def manipulate_target(self) -> None:
-        (
-            getattr(getattr(self.target_model, self.MODEL_TARGET), self.LAYER_TARGET)[
-                self.target.layer
-            ].output[0].t[self.target.position]
-        ) = self._mapped_hidden_state
+        output = (
+            getattr(getattr(self.target_model, self.MODEL_TARGET), self.LAYER_TARGET)[self.target.layer].output[0]
+        )
+        for i, position in enumerate(self.target.position):
+            output.t[position] = next(self._mapped_hidden_states)
 
         self._target_outputs.append(self.target_model.lm_head.output[0].save())
         for _ in range(self.target.max_new_tokens - 1):
@@ -215,10 +214,6 @@ class Patchscope(PatchscopeBase):
             self.target_forward_pass()
             return
 
-        print(self.target.position)
-        self.offset_target_position()
-        print(self.target.position)
-
         with self.target_model.generate(
             remote=self.REMOTE,
             **self.generation_kwargs,
@@ -227,35 +222,7 @@ class Patchscope(PatchscopeBase):
                 self.manipulate_source()
             self.map()
             with runner.invoke(self.target.prompt) as _:
-                input = self.target_model.transformer.wte.input.save()
-                # NB, we may someday want to ablate all the padded outputs as they might mess up generation
-                # for layer in getattr(getattr(self.target_model, self.MODEL_TARGET), self.LAYER_TARGET):
-                #     layer.output[0][:, :diff, :] = 0
                 self.manipulate_target()
-        print(f"Input shape: {input.shape}")
-
-    def offset_target_position(self) -> None:
-        """
-        During batching, the final generation tokens are padded to be max(len(source), len(target)).
-
-        This is fine for most things, but it means that the tokens in the output generation might not
-        be where we expect them.
-        """
-        # If the target position is negative, we dont need to adjust it.
-        if self.target.position < 0:
-            return
-
-        diff = len(self.source_tokens) - len(self.target_tokens)
-        # If the target position is a range, offset them all
-        if isinstance(self.target.position, range):
-            self.target.position = range(
-                self.target.position.start + diff,
-                self.target.position.stop + diff,
-            )
-            return
-
-        # If the target position is a single value, offset it
-        self.target.position += diff
 
     def over(self, source_layers: Sequence[int], target_layers: Sequence[int]) -> list[torch.Tensor]:
         """
