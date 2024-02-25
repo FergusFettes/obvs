@@ -237,6 +237,28 @@ class Patchscope(PatchscopeBase):
         :return: A source_layers x target_layers x max_new_tokens list of outputs.
         """
         outputs = []
+        for i in source_layers:
+            self.source.layer = i
+            inner_outputs = []
+            for j in target_layers:
+                self.target.layer = j
+                logger.info(f"Running Source Layer-{i}, Target Layer-{j}")
+                self.run()
+                # logger.info(self.full_output())
+                logger.info(f"Saving {len(self._target_outputs)} outputs")
+                inner_outputs.append(self._target_outputs)
+            outputs.append(inner_outputs)
+        return outputs
+
+    def over_batch(self, source_layers: Sequence[int], target_layers: Sequence[int]) -> list[torch.Tensor]:
+        """
+        Run the patchscope over the specified set of layers.
+
+        :param source_layers: A list of layer indices or a range of layer indices.
+        :param target_layers: A list of layer indices or a range of layer indices.
+        :return: A source_layers x target_layers x max_new_tokens list of outputs.
+        """
+        outputs = []
         with self.target_model.generate(
             remote=self.REMOTE,
             **self.generation_kwargs,
@@ -254,7 +276,7 @@ class Patchscope(PatchscopeBase):
                 outputs.append(inner_outputs)
         return outputs
 
-    def over_pairs(self, source_layers: Sequence[int], target_layers: Sequence[int]) -> list[torch.Tensor]:
+    def over_pairs_batch(self, source_layers: Sequence[int], target_layers: Sequence[int]) -> list[torch.Tensor]:
         """
         Run the patchscope over the specified set of layers in pairs
         :param source_layers: A list of layer indices or a range of layer indices.

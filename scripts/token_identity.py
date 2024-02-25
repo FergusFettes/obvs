@@ -30,17 +30,14 @@ model_names = {
 
 
 def run_over_all_layers(patchscope, target_tokens, values):
-    source_layers = list(range(patchscope.n_layers))
-    target_layers = list(range(patchscope.n_layers))
-    iterations = len(source_layers) * len(target_layers)
+    source_layers = list(range(4))
+    target_layers = list(range(4))
 
     # with tqdm(total=iterations) as pbar:
     #     outputs = patchscope.over_pairs(source_layers, target_layers)
     #     pbar.update(1)
 
-    with tqdm(total=iterations) as pbar:
-        outputs = patchscope.over(source_layers, target_layers)
-        pbar.update(1)
+    outputs = patchscope.over(source_layers, target_layers)
 
     logger.info("Computing surprisal")
     target_output = 0
