@@ -218,11 +218,14 @@ class Patchscope(PatchscopeBase):
             remote=self.REMOTE,
             **self.generation_kwargs,
         ) as runner:
-            with runner.invoke(self.source.prompt) as _:
-                self.manipulate_source()
-            self.map()
-            with runner.invoke(self.target.prompt) as _:
-                self.manipulate_target()
+            self.run_batch(runner)
+
+    def run_batch(self, runner: LanguageModel) -> None:
+        with runner.invoke(self.source.prompt) as _:
+            self.manipulate_source()
+        self.map()
+        with runner.invoke(self.target.prompt) as _:
+            self.manipulate_target()
 
     def over(self, source_layers: Sequence[int], target_layers: Sequence[int]) -> list[torch.Tensor]:
         """
@@ -233,17 +236,21 @@ class Patchscope(PatchscopeBase):
         :return: A source_layers x target_layers x max_new_tokens list of outputs.
         """
         outputs = []
-        for i in source_layers:
-            self.source.layer = i
-            inner_outputs = []
-            for j in target_layers:
-                self.target.layer = j
-                logger.info(f"Running Source Layer-{i}, Target Layer-{j}")
-                self.run()
-                logger.info(self.full_output())
-                logger.info(f"Saving {len(self._target_outputs)} outputs")
-                inner_outputs.append(self._target_outputs)
-            outputs.append(inner_outputs)
+        with self.target_model.generate(
+            remote=self.REMOTE,
+            **self.generation_kwargs,
+        ) as runner:
+            for i in source_layers:
+                self.source.layer = i
+                inner_outputs = []
+                for j in target_layers:
+                    self.target.layer = j
+                    logger.info(f"Running Source Layer-{i}, Target Layer-{j}")
+                    self.run_batch(runner)
+                    logger.info(self.full_output())
+                    logger.info(f"Saving {len(self._target_outputs)} outputs")
+                    inner_outputs.append(self._target_outputs)
+                outputs.append(inner_outputs)
         return outputs
 
     def over_pairs(self, source_layers: Sequence[int], target_layers: Sequence[int]) -> list[torch.Tensor]:
@@ -254,12 +261,16 @@ class Patchscope(PatchscopeBase):
         :return: A source_layers x target_layers x max_new_tokens list of outputs.
         """
         outputs = []
-        for i, j in zip(source_layers, target_layers):
-            self.source.layer = i
-            self.target.layer = j
-            logger.info(f"Running Source Layer-{i}, Target Layer-{j}")
-            self.run()
-            logger.info(self.full_output())
-            logger.info(f"Saving {len(self._target_outputs)} outputs")
-            outputs.append(self._target_outputs)
+        with self.target_model.generate(
+            remote=self.REMOTE,
+            **self.generation_kwargs,
+        ) as runner:
+            for i, j in zip(source_layers, target_layers):
+                self.source.layer = i
+                self.target.layer = j
+                logger.info(f"Running Source Layer-{i}, Target Layer-{j}")
+                self.run_batch(runner)
+                logger.info(self.full_output())
+                logger.info(f"Saving {len(self._target_outputs)} outputs")
+                outputs.append(self._target_outputs)
         return outputs

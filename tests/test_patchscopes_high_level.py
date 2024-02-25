@@ -327,9 +327,6 @@ class TestPatchscope:
         patchscope.target.position = [-1]
 
         patchscope.run()
-        # # Sanity check the output is as long as the SOURCE prompt, because its been padded
-        # assert len(patchscope._output_tokens()) == len(patchscope.source_tokens)
-        # assert len(patchscope._target_outputs[0]) == len(patchscope.source_tokens)
 
         decoded = "".join(patchscope.tokenizer.decode(patchscope._output_tokens()))
         print(repr(decoded))
@@ -338,9 +335,8 @@ class TestPatchscope:
 
         # But if we patch earlier
         patchscope.target.position = [1]
-        # Sanity check the output is as long as the SOURCE prompt, because its been padded
-        assert len(patchscope._output_tokens()) >= len(patchscope.source_tokens)
-        assert len(patchscope._target_outputs[0]) == len(patchscope.source_tokens)
+        assert len(patchscope._output_tokens()) >= len(patchscope.target_tokens)
+        assert len(patchscope._target_outputs[0]) == len(patchscope.target_tokens)
         decoded = "".join(patchscope.tokenizer.decode(patchscope._output_tokens()))
         print(repr(decoded))
         # Assert cat is at the end
