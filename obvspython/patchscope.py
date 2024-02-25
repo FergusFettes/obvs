@@ -158,7 +158,7 @@ class Patchscope(PatchscopeBase):
         For each architecture, you need to know the name of the layers.
         """
         with self.source_model.trace(self.source.prompt, remote=self.REMOTE) as _:
-            self._source_hidden_state = self.manipulate_source().save()
+            self.manipulate_source()
 
     def manipulate_source(self) -> torch.Tensor:
         """
@@ -166,9 +166,9 @@ class Patchscope(PatchscopeBase):
 
         NB: This is seperated out from the source_forward_pass method to allow for batching.
         """
-        return getattr(getattr(self.source_model, self.MODEL_SOURCE), self.LAYER_SOURCE)[
-            self.source.layer
-        ].output[0][:, self.source.position, :]
+        self._source_hidden_state = getattr(
+            getattr(self.source_model, self.MODEL_SOURCE), self.LAYER_SOURCE
+        )[self.source.layer].output[0][:, self.source.position, :].save()
 
     def map(self) -> None:
         """
@@ -209,9 +209,29 @@ class Patchscope(PatchscopeBase):
         Run the patchscope
         """
         self._target_outputs = []
-        self.source_forward_pass()
-        self.map()
-        self.target_forward_pass()
+        if self.source_model != self.target_model:
+            self.source_forward_pass()
+            self.map()
+            self.target_forward_pass()
+            return
+
+        # When we do batching, if the target prompt is shorter than the source prompt, it is padded.
+        # This means we have to adjust the position of the target token.
+        diff = len(self.source_tokens) - len(self.target_tokens)
+        self.target.position += diff
+
+        with self.target_model.generate(
+            remote=self.REMOTE,
+            **self.generation_kwargs,
+        ) as runner:
+            with runner.invoke(self.source.prompt) as _:
+                self.manipulate_source()
+            self.map()
+            with runner.invoke(self.target.prompt) as _:
+                # NB, we may someday want to ablate all the padded outputs as they might mess up generation
+                # for layer in getattr(getattr(self.target_model, self.MODEL_TARGET), self.LAYER_TARGET):
+                #     layer.output[0][:, :diff, :] = 0
+                self.manipulate_target()
 
     def over(self, source_layers: Sequence[int], target_layers: Sequence[int]) -> list[torch.Tensor]:
         """

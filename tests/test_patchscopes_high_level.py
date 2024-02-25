@@ -173,7 +173,8 @@ class TestPatchscope:
         patchscope.run()
 
         # Assert the target has been patched to think a rat is a cat
-        assert "a rat is a cat" in patchscope.full_output()
+        # NB: Because the source is longer, the target is padded
+        assert "a cat is a cat" in patchscope.tokenizer.decode(patchscope._output_tokens())
 
     # @staticmethod
     # def test_token_identity_prompt_early(patchscope):
@@ -313,3 +314,11 @@ class TestPatchscope:
         patchscope.run()
 
         assert "a rat is a cat" in patchscope.full_output()
+
+    @staticmethod
+    def test_token_position_short_target():
+        assert False
+
+    @staticmethod
+    def test_target_output_length_short_target():
+        assert False

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import random
+import string
 import time
 
 import numpy as np
@@ -65,10 +67,10 @@ def upate_saved_values(values):
 
 @app.command()
 def main(
-    word: str = typer.Argument("Jeff", help="The expected next token."),
+    word: str = typer.Argument(" boat", help="The expected next token."),
     model: str = "gpt2",
     prompt: str = typer.Option(
-        "Amazons former CEO Jeff Bezos attended the Oscars. The CEO",
+        "if its on the road, its a car. if its in the air, its a plane. if its on the sea, its a",
         help="Source Prompt",
     ),
 ):
@@ -91,14 +93,13 @@ def main(
 
     target_context = TargetContext.from_source(source_context)
     target_context.prompt = (
-        "bat is old; 135 is blue; hello is bye; black is blue; shoe is house; x is"
+        "".join(random.choices(string.ascii_lowercase, k=100))
     )
     target_context.max_new_tokens = 1
     patchscope = Patchscope(source=source_context, target=target_context)
 
     try:
         patchscope.source.position, target_tokens = patchscope.source_position_tokens(word)
-        patchscope.source.position = -1
         patchscope.target.position, _ = patchscope.target_position_tokens("X")
 
         assert (
