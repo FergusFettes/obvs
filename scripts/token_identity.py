@@ -89,8 +89,8 @@ def setup(prompt, model, device, word):
 
     except ValueError:
         target_tokens = patchscope.tokenizer.encode(" boat", add_special_tokens=False)
-        patchscope.source.position = -1
-        patchscope.target.position = -1
+        patchscope.source.position = [-1]
+        patchscope.target.position = [-1]
 
     return target_tokens, patchscope
 

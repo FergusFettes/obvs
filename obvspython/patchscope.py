@@ -221,6 +221,7 @@ class Patchscope(PatchscopeBase):
             self.run_batch(runner)
 
     def run_batch(self, runner: LanguageModel) -> None:
+        self._target_outputs = []
         with runner.invoke(self.source.prompt) as _:
             self.manipulate_source()
         self.map()
@@ -247,7 +248,7 @@ class Patchscope(PatchscopeBase):
                     self.target.layer = j
                     logger.info(f"Running Source Layer-{i}, Target Layer-{j}")
                     self.run_batch(runner)
-                    logger.info(self.full_output())
+                    # logger.info(self.full_output())
                     logger.info(f"Saving {len(self._target_outputs)} outputs")
                     inner_outputs.append(self._target_outputs)
                 outputs.append(inner_outputs)
@@ -270,7 +271,7 @@ class Patchscope(PatchscopeBase):
                 self.target.layer = j
                 logger.info(f"Running Source Layer-{i}, Target Layer-{j}")
                 self.run_batch(runner)
-                logger.info(self.full_output())
+                # logger.info(self.full_output())
                 logger.info(f"Saving {len(self._target_outputs)} outputs")
                 outputs.append(self._target_outputs)
         return outputs
