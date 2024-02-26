@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from obvs.patchscope import Patchscope, SourceContext, TargetContext
+from obvs.expansion import NucleusExpansion
 
 
 # Make a patchscope fixture so we only have to load the model once. (This is slow)
@@ -20,3 +21,9 @@ def patchscope_llama():
     source_context = SourceContext(device="cpu", model_name="meta-llama/Llama-2-7b-hf")
     target_context = TargetContext.from_source(source_context, max_new_tokens=1)
     return Patchscope(source_context, target_context)
+
+
+# Make a nucleus expansion fixture so we only have to load the model once. (This is slow)
+@pytest.fixture(scope="session")
+def expansion():
+    return NucleusExpansion("the quick brown fox jumps over the")
