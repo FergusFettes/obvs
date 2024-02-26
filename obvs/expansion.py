@@ -23,6 +23,7 @@ from tqdm import tqdm
 
 from obvs.patchscope import Patchscope
 from obvs.logging import logger
+from obvs.utils import get_model_specifics
 
 from nnsight import LanguageModel
 
@@ -95,9 +96,8 @@ class NucleusExpansion:
         self.validation_fn = validation_fn
         self.includes = includes or []
         self.nodes = {0: Node(0, self.prompt, 1.0, None, 0)}
-
-        # Delete this later
-        self.use_noken = False
+        self.use_embedding = False
+        self.model_specifics = get_model_specifics(self.model_name)
 
         self.progress_bar = tqdm(desc="Processing", unit="iter")
 
@@ -125,10 +125,9 @@ class NucleusExpansion:
             logger.info("Pathchscopes not yet supported!")
             raise NotImplementedError
             # return prompt.target.prompt, prompt.target_model
-        # If its a tensor, we will need to add it to the prompt
         if isinstance(prompt, torch.Tensor):
-            logger.info("Embeddings not yet supported!")
-            raise NotImplementedError
+            self.use_embedding = True
+            return self.DEFAULT_PROMPT, LanguageModel(self.model_name, device_map=device)
 
         # We will actually pretty quickly want to conver this to tokens. But first lets get it working with text.
         return prompt, LanguageModel(self.model_name, device_map=device)
@@ -168,7 +167,7 @@ class NucleusExpansion:
     def forward_pass(self, prompt_tokens):
         prompt = self.model.tokenizer.decode(prompt_tokens)
         with self.model.trace(prompt) as _:
-            if self.use_noken:
+            if self.use_embedding:
                 getattr(getattr(
                     self.model, self.model_specifics[0]
                 ), self.model_specifics[2]).output.t[self.token_position] = self.noken
@@ -224,7 +223,7 @@ def export_html(nodes):
     tree_json_data = f"JSON.parse(`{tree_json_data}`)"
 
     # Read the HTML template
-    with open("./index.html", 'r') as file:
+    with open("./obvs/expansion.html", 'r') as file:
         html_content = file.read()
 
     # Embed the tree data into the HTML

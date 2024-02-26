@@ -1,23 +1,16 @@
-import re
-
 from obvs.expansion import NucleusExpansion, export_html
+from obvs.utils import Embedding, validate_word
 
 
-def validate_word(word):
-    word = word.strip()
-    if not word:
-        return False
-    if not re.match(r"^[a-zA-Z']+$", word):
-        return False
-    return True
-
+# If no word is offered, embdding returns the centroid of the models embedding space.
+embedding = Embedding(" apple").embedding
 
 expansion = NucleusExpansion(
-    "the own and the pussycat went to sea",
+    embedding,
     cutoff_breadth=20,
     cutoff_prob=1e-4,
+    validation_fn=validate_word
 )
-
 
 expansion.expand()
 export_html(expansion.nodes)

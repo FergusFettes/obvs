@@ -212,14 +212,14 @@ function processJsonData(json) {
             var numericKey = Number(key);
             nodes.push({
                 id: numericKey,
-                label: node.text,
+                label: node.text || node.word,
                 shape: "box",
                 color: {
                     background: "white",
                     border: "#135061",
                 },
                 borderWidth: 1,
-                probability: node.probability,
+                probability: node.prob || node.probability,
             });
 
             if (node.parent !== null) {
