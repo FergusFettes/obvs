@@ -16,6 +16,7 @@ You can also provide a list of words to include in the expansion.
 """
 
 from dataclasses import dataclass
+from dataclasses_json import dataclass_json
 import re
 from typing import Union, Sequence, Dict
 from tqdm import tqdm
@@ -37,6 +38,7 @@ def validate_word(word):
     return True
 
 
+@dataclass_json
 @dataclass
 class Node:
     """
@@ -136,7 +138,7 @@ class NucleusExpansion:
         Expand the prompt.
 
         Returns:
-            list: The expanded prompt.
+            list: The expanded prompt as nodes.
         """
         tokens = self.model.tokenizer.encode(self.prompt)
         self.loop(tokens, 0, 0)
@@ -157,7 +159,7 @@ class NucleusExpansion:
                 logger.info(f"Skipping invalid word: {word}")
                 continue
 
-            logger.info(f"prompt: {prompt} -> {word}:\t{prob:.4f}\t({cumulative_prob * prob:.2e})")
+            logger.info(f"prompt: {prompt} -> {word}:\t{prob:.4f}\t({cumulative_prob * prob:.2e}/{self.cutoff_prob})")
 
             id = len(self.nodes) + 1
             self.nodes[id] = Node(id, word.strip(), prob * cumulative_prob, node_id, depth + 1)
@@ -193,3 +195,47 @@ class NucleusExpansion:
         self.nodes = {0: Node(0, self.prompt, 1.0, None, 0)}
         self.progress_bar.reset()
 
+
+def export_html(nodes):
+    """
+    Embed the data into the HTML template and save the result.
+
+    :param nodes:
+    """
+    import json
+    # Serialize the dictionary to a JSON-formatted string, ensuring that it does not escape non-ASCII characters
+    # Make the nodes into a dict
+    nodes = {node.id: node.to_dict() for node in nodes.values()}
+    tree_json_data = json.dumps(nodes, ensure_ascii=False)
+
+    # Escape sequences for JSON embedded in HTML/JavaScript
+    tree_json_data = (
+        tree_json_data
+        .replace('\\', '\\\\')  # Escape backslashes
+        .replace('`', '\\`')    # Escape backticks to allow use in JavaScript template literals
+        .replace('\n', '\\n')   # Escape newlines
+        .replace('\r', '\\r')   # Escape carriage returns
+        .replace('\b', '\\b')   # Escape backspaces
+        .replace('\f', '\\f')   # Escape formfeeds
+        .replace('\t', '\\t')   # Escape tabs
+    )
+
+    # Convert the json to javascript
+    tree_json_data = f"JSON.parse(`{tree_json_data}`)"
+
+    # Read the HTML template
+    with open("./index.html", 'r') as file:
+        html_content = file.read()
+
+    # Embed the tree data into the HTML
+    html_content = html_content.replace('var rawJsonData = {};', f'var rawJsonData = {tree_json_data};')
+
+    # Save the modified HTML to the output path
+    with open("./graph.html", 'w') as file:
+        file.write(html_content)
+
+    print("HTML file saved to ./graph.html")
+
+    # Use subprocess to open the HTML file in the default web browser
+    import subprocess
+    subprocess.run(["open", "graph.html"])
