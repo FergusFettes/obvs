@@ -88,15 +88,17 @@ class NucleusExpansion:
             validation_fn (function): A function to validate the expansion.
             includes (list): A list of words to include in the expansion.
         """
+        self.use_embedding = False
         self.model_name = model_name
         self._prompt, self.model = self._parse_prompt(prompt, device)
+        if self.use_embedding:
+            self.get_target_position()
         self.cutoff_prob = cutoff_prob
         self.cutoff_depth = cutoff_depth
         self.cutoff_breadth = cutoff_breadth
         self.validation_fn = validation_fn
         self.includes = includes or []
         self.nodes = {0: Node(0, self.prompt, 1.0, None, 0)}
-        self.use_embedding = False
         self.model_specifics = get_model_specifics(self.model_name)
 
         self.progress_bar = tqdm(desc="Processing", unit="iter")
@@ -127,6 +129,7 @@ class NucleusExpansion:
             # return prompt.target.prompt, prompt.target_model
         if isinstance(prompt, torch.Tensor):
             self.use_embedding = True
+            self.embedding = prompt
             return self.DEFAULT_PROMPT, LanguageModel(self.model_name, device_map=device)
 
         # We will actually pretty quickly want to conver this to tokens. But first lets get it working with text.
@@ -168,9 +171,8 @@ class NucleusExpansion:
         prompt = self.model.tokenizer.decode(prompt_tokens)
         with self.model.trace(prompt) as _:
             if self.use_embedding:
-                getattr(getattr(
-                    self.model, self.model_specifics[0]
-                ), self.model_specifics[2]).output.t[self.token_position] = self.noken
+                output = getattr(getattr(self.model, self.model_specifics[0]), self.model_specifics[2]).output
+                output.t[self.token_position] = self.embedding
             return self.model.lm_head.output.t[-1].save(), prompt
 
     def get_next_tokens(self, output, cumulative_prob):
@@ -182,6 +184,24 @@ class NucleusExpansion:
             for prob, token in zip(topk.values[0], topk.indices[0])
             if (cumulative_prob * prob) > self.cutoff_prob
         ]
+
+    def get_target_position(self):
+        """
+        Get the position of the target token in the prompt.
+
+        Args:
+            prompt_tokens (list): The prompt tokens.
+
+        Returns:
+            int: The position of the target token.
+        """
+        tokens = self.model.tokenizer.encode(self.prompt)
+        try:
+            x = self.model.tokenizer.encode(" X")
+            self.token_position = tokens.index(x[0])
+        except ValueError:
+            x = self.model.tokenizer.encode("X")
+            self.token_position = tokens.index(x[0])
 
     def includes(self, output):
         """

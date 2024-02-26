@@ -3,7 +3,8 @@ from obvs.utils import Embedding, validate_word
 
 
 # If no word is offered, embdding returns the centroid of the models embedding space.
-embedding = Embedding(" apple").embedding
+embedding = Embedding(" cat").embedding
+# embedding = Embedding([" cat", " dog"]).embedding
 
 expansion = NucleusExpansion(
     embedding,
