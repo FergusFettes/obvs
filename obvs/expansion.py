@@ -15,6 +15,7 @@ whole words.
 You can also provide a list of words to include in the expansion.
 """
 
+import json
 from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 import re
@@ -215,21 +216,28 @@ class NucleusExpansion:
         self.progress_bar.reset()
 
 
+def export_json(nodes):
+    # Make the nodes into a dict
+    nodes = {node.id: node.to_dict() for node in nodes.values()}
+    data = json.dumps(nodes, ensure_ascii=False)
+
+    with open("graph.json", "w") as file:
+        file.write(data)
+    return data
+
+
 def export_html(nodes):
     """
     Embed the data into the HTML template and save the result.
 
     :param nodes:
     """
-    import json
     # Serialize the dictionary to a JSON-formatted string, ensuring that it does not escape non-ASCII characters
-    # Make the nodes into a dict
-    nodes = {node.id: node.to_dict() for node in nodes.values()}
-    tree_json_data = json.dumps(nodes, ensure_ascii=False)
+    data = export_json(nodes)
 
     # Escape sequences for JSON embedded in HTML/JavaScript
-    tree_json_data = (
-        tree_json_data
+    data = (
+        data
         .replace('\\', '\\\\')  # Escape backslashes
         .replace('`', '\\`')    # Escape backticks to allow use in JavaScript template literals
         .replace('\n', '\\n')   # Escape newlines
@@ -240,14 +248,14 @@ def export_html(nodes):
     )
 
     # Convert the json to javascript
-    tree_json_data = f"JSON.parse(`{tree_json_data}`)"
+    data = f"JSON.parse(`{data}`)"
 
     # Read the HTML template
     with open("./obvs/expansion.html", 'r') as file:
         html_content = file.read()
 
     # Embed the tree data into the HTML
-    html_content = html_content.replace('var rawJsonData = {};', f'var rawJsonData = {tree_json_data};')
+    html_content = html_content.replace('var rawJsonData = {};', f'var rawJsonData = {data};')
 
     # Save the modified HTML to the output path
     with open("./graph.html", 'w') as file:

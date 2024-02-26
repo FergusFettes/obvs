@@ -1595,13 +1595,13 @@ test = ["pytest (>=7.2)", "pytest-cov (>=4.0)"]
 
 [[package]]
 name = "nnsight"
-version = "0.2.4"
+version = "0.2.5"
 description = "Package for interpreting and manipulating the internals of deep learning models."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "nnsight-0.2.4-py3-none-any.whl", hash = "sha256:9c434a11d1003312c5d45f539bb884cee3da277852fb40b4eae23619822aebbd"},
-    {file = "nnsight-0.2.4.tar.gz", hash = "sha256:e11756f5fca54b005543fe7601128c5b8bfaa127d00482bc1f02662ea2e5a206"},
+    {file = "nnsight-0.2.5-py3-none-any.whl", hash = "sha256:a861f655e486aeb438e42473fb6ba22b3a1b64b622bcffe0c5dd84b136cd153b"},
+    {file = "nnsight-0.2.5.tar.gz", hash = "sha256:b4b2853f01dafd04139e9393a0c49df00a8a6ebd98cd6e991e24652acdcd230b"},
 ]
 
 [package.dependencies]
