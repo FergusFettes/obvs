@@ -40,8 +40,8 @@ class TestPatchscope:
         patchscope = Patchscope(source, target)
         assert patchscope.source == source
         assert patchscope.target == target
-        assert patchscope.source_model
-        assert patchscope.target_model
+        assert patchscope.source_ml
+        assert patchscope.target_ml
 
         assert patchscope.source.position == range(len(patchscope.tokenizer.encode("source")))
         assert patchscope.target.position == range(len(patchscope.tokenizer.encode("target")))
@@ -94,7 +94,7 @@ class TestPatchscope:
         )  # Number of tokens
         assert (
             patchscope._source_hidden_state.value.shape[2]
-            == patchscope.source_model.transformer.embed_dim
+            == patchscope.source_ml.model.transformer.embed_dim
         )  # Embedding dimension
 
         patchscope.source.prompt = "a dog is a dog"

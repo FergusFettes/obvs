@@ -10,17 +10,6 @@ class PatchscopeBase(ABC):
     A base class with lots of helper functions
     """
 
-    def get_model_specifics(self, model_name):
-        """
-        Get the model specific attributes.
-        The following works for gpt2, llama2 and mistral models.
-        """
-        if "gpt" in model_name:
-            return "transformer", "h"
-        if "mamba" in model_name:
-            return "backbone", "layers"
-        return "model", "layers"
-
     @abstractmethod
     def source_forward_pass(self) -> None:
         pass
@@ -195,18 +184,6 @@ class PatchscopeBase(ABC):
         except ValueError:
             tokens = self.tokenizer.encode(" " + substring, add_special_tokens=False)
             return self.target_tokens.index(tokens[0]), tokens
-
-    @property
-    def n_layers(self):
-        return self.n_layers_target
-
-    @property
-    def n_layers_source(self):
-        return len(getattr(getattr(self.source_model, self.MODEL_TARGET), self.LAYER_TARGET))
-
-    @property
-    def n_layers_target(self):
-        return len(getattr(getattr(self.target_model, self.MODEL_TARGET), self.LAYER_TARGET))
 
     def compute_precision_at_1(self, estimated_probs, true_token_index):
         """

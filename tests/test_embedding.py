@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from obvs.utils import Embedding
 
 
@@ -14,12 +16,24 @@ def test_gpt2_single_word():
 def test_gpt2_long_input():
     embed = Embedding(" the quick brown fox jumps over the")
     assert embed.embedding.shape[0] == 768
-    assert len(embed.embeddings) == 1
-    assert embed.embeddings[0].shape[1] == 768
 
 
 def test_gpt2_multiple_words():
     embed = Embedding([" hello", " world"])
     assert embed.embedding.shape[0] == 768
-    assert len(embed.embeddings) == 2
-    assert embed.embeddings[0].shape[1] == 768
+
+
+def test_gpt2_multiple_sentences():
+    embed = Embedding([" hello there", " what a world"])
+    assert embed.embedding.shape[0] == 768
+
+
+def test_gpt2_averaging():
+    embed1 = Embedding(" cat")
+    embed2 = Embedding(" cat cat cat")
+
+    assert embed1.embedding.allclose(embed2.embedding)
+
+    embed3 = Embedding([" cat cat cat", " cat cat"])
+
+    assert embed1.embedding.allclose(embed3.embedding)

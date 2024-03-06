@@ -59,7 +59,7 @@ class TestPatchscope:
 
         patchscope.run()
         output = patchscope._target_outputs[0].value.argmax(dim=-1)[-1].tolist()
-        decoded = patchscope.target_model.tokenizer.decode(output)
+        decoded = patchscope.tokenizer.decode(output)
 
         # Assert the target has been patched to think a rat is a cat
         assert "cat" in decoded
@@ -117,7 +117,7 @@ class TestPatchscope:
         patchscope.source.prompt = "a dog is a dog. a rat is a rat. a cat"
         patchscope.target.prompt = patchscope.source.prompt
         patchscope.target.max_new_tokens = 4
-        patchscope.generation_kwargs = ModelLoader.generation_kwargs(
+        patchscope.target_ml.generation_kwargs = ModelLoader.generation_kwargs(
             patchscope.target.model_name,
             4,
         )
@@ -137,7 +137,7 @@ class TestPatchscope:
         patchscope.target.position = None
         patchscope.init_positions()
         patchscope.target.max_new_tokens = 4
-        patchscope.generation_kwargs = ModelLoader.generation_kwargs(
+        patchscope.target_ml.generation_kwargs = ModelLoader.generation_kwargs(
             patchscope.target.model_name,
             4,
         )
@@ -160,7 +160,7 @@ class TestPatchscope:
         patchscope.source.position = -1
         patchscope.target.position = -1
         patchscope.target.max_new_tokens = 4
-        patchscope.generation_kwargs = ModelLoader.generation_kwargs(
+        patchscope.target_ml.generation_kwargs = ModelLoader.generation_kwargs(
             patchscope.target.model_name,
             4,
         )
@@ -186,7 +186,7 @@ class TestPatchscope:
             "bat is bat; 135 is 135; hello is hello; black is black; shoe is shoe; x is"
         )
         patchscope.target.max_new_tokens = 4
-        patchscope.generation_kwargs = ModelLoader.generation_kwargs(
+        patchscope.target_ml.generation_kwargs = ModelLoader.generation_kwargs(
             patchscope.target.model_name,
             4,
         )
@@ -219,7 +219,7 @@ class TestPatchscope:
             "bat is bat; 135 is 135; hello is hello; black is black; shoe is shoe; x is"
         )
         patchscope.target.max_new_tokens = 4
-        patchscope.generation_kwargs = ModelLoader.generation_kwargs(
+        patchscope.target_ml.generation_kwargs = ModelLoader.generation_kwargs(
             patchscope.target.model_name,
             4,
         )
@@ -250,7 +250,7 @@ class TestPatchscope:
         patchscope.target.position = None
         patchscope.init_positions()
         patchscope.target.max_new_tokens = 2
-        patchscope.generation_kwargs = ModelLoader.generation_kwargs(
+        patchscope.target_ml.generation_kwargs = ModelLoader.generation_kwargs(
             patchscope.target.model_name,
             2,
         )

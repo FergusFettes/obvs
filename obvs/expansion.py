@@ -15,20 +15,20 @@ whole words.
 You can also provide a list of words to include in the expansion.
 """
 
+from __future__ import annotations
+
 import json
-from dataclasses import dataclass
-from dataclasses_json import dataclass_json
 import re
-from typing import Union, Sequence, Dict
-from tqdm import tqdm
-
-from obvs.patchscope import Patchscope
-from obvs.logging import logger
-from obvs.utils import get_model_specifics
-
-from nnsight import LanguageModel
+from collections.abc import Sequence
+from dataclasses import dataclass
 
 import torch
+from dataclasses_json import dataclass_json
+from tqdm import tqdm
+
+from obvs.logging import logger
+from obvs.model import ModelLoader
+from obvs.patchscope import Patchscope
 
 
 def validate_word(word):
@@ -55,7 +55,7 @@ class Node:
     parent: int
     depth: int
 
-    def get_children(self, nodes: Dict[int, "Node"]):
+    def get_children(self, nodes: dict[int, Node]):
         return [node for id, node in nodes.items() if node.parent == self.id]
 
 
@@ -65,16 +65,17 @@ class NucleusExpansion:
 
     Expand a prompt.
     """
+
     DEFAULT_PROMPT = "A typical definition of X would be '"
 
     def __init__(
         self,
-        prompt: Union[str, list[int], torch.Tensor, Patchscope],
+        prompt: str | list[int] | torch.Tensor | Patchscope,
         model_name: str = "gpt2",
         position: Sequence[int] = [-1],
         cutoff_prob=1e-2,
         cutoff_depth=1e6,
-        cutoff_breadth=10,                  # This is the topk
+        cutoff_breadth=10,  # This is the topk
         validation_fn=lambda x: True,
         includes=None,
         device="cuda" if torch.cuda.is_available() else "cpu",
@@ -89,9 +90,8 @@ class NucleusExpansion:
             validation_fn (function): A function to validate the expansion.
             includes (list): A list of words to include in the expansion.
         """
-        self.use_embedding = False
         self.model_name = model_name
-        self._prompt, self.model = self._parse_prompt(prompt, device)
+        self._prompt, self.ml, self.use_embedding = self._parse_prompt(prompt, device)
         if self.use_embedding:
             self.get_target_position()
         self.cutoff_prob = cutoff_prob
@@ -100,7 +100,6 @@ class NucleusExpansion:
         self.validation_fn = validation_fn
         self.includes = includes or []
         self.nodes = {0: Node(0, self.prompt, 1.0, None, 0)}
-        self.model_specifics = get_model_specifics(self.model_name)
 
         self.progress_bar = tqdm(desc="Processing", unit="iter")
 
@@ -129,12 +128,10 @@ class NucleusExpansion:
             raise NotImplementedError
             # return prompt.target.prompt, prompt.target_model
         if isinstance(prompt, torch.Tensor):
-            self.use_embedding = True
             self.embedding = prompt
-            return self.DEFAULT_PROMPT, LanguageModel(self.model_name, device_map=device)
+            return self.DEFAULT_PROMPT, ModelLoader(self.model_name, device), True
 
-        # We will actually pretty quickly want to conver this to tokens. But first lets get it working with text.
-        return prompt, LanguageModel(self.model_name, device_map=device)
+        return prompt, ModelLoader(self.model_name, device), False
 
     def expand(self):
         """
@@ -143,7 +140,7 @@ class NucleusExpansion:
         Returns:
             list: The expanded prompt as nodes.
         """
-        tokens = self.model.tokenizer.encode(self.prompt)
+        tokens = self.ml.model.tokenizer.encode(self.prompt)
         self.loop(tokens, 0, 0)
         return self.nodes
 
@@ -157,24 +154,26 @@ class NucleusExpansion:
         tokens = self.get_next_tokens(output, cumulative_prob)
 
         for prob, token in tokens:
-            word = self.model.tokenizer.decode(token)
+            word = self.ml.model.tokenizer.decode(token)
             if not self.validation_fn(word):
                 logger.info(f"Skipping invalid word: {word}")
                 continue
 
-            logger.info(f"prompt: {prompt} -> {word}:\t{prob:.4f}\t({cumulative_prob * prob:.2e}/{self.cutoff_prob})")
+            logger.info(
+                f"prompt: {prompt} -> {word}:\t{prob:.4f}\t({cumulative_prob * prob:.2e}/{self.cutoff_prob})",
+            )
 
             id = len(self.nodes) + 1
             self.nodes[id] = Node(id, word.strip(), prob * cumulative_prob, node_id, depth + 1)
             self.loop(prompt_tokens + [token], id, depth + 1)
 
     def forward_pass(self, prompt_tokens):
-        prompt = self.model.tokenizer.decode(prompt_tokens)
-        with self.model.trace(prompt) as _:
+        prompt = self.ml.model.tokenizer.decode(prompt_tokens)
+        with self.ml.model.trace(prompt) as _:
             if self.use_embedding:
-                output = getattr(getattr(self.model, self.model_specifics[0]), self.model_specifics[2]).output
+                output = self.ml.embed.output
                 output.t[self.token_position] = self.embedding
-            return self.model.lm_head.output.t[-1].save(), prompt
+            return self.ml.lm_head.output.t[-1].save(), prompt
 
     def get_next_tokens(self, output, cumulative_prob):
         # Apply softmax, filter out low probability tokens, then get the top k
@@ -196,12 +195,12 @@ class NucleusExpansion:
         Returns:
             int: The position of the target token.
         """
-        tokens = self.model.tokenizer.encode(self.prompt)
+        tokens = self.ml.model.tokenizer.encode(self.prompt)
         try:
-            x = self.model.tokenizer.encode(" X")
+            x = self.ml.model.tokenizer.encode(" X")
             self.token_position = tokens.index(x[0])
         except ValueError:
-            x = self.model.tokenizer.encode("X")
+            x = self.ml.model.tokenizer.encode("X")
             self.token_position = tokens.index(x[0])
 
     def includes(self, output):
@@ -237,32 +236,32 @@ def export_html(nodes):
 
     # Escape sequences for JSON embedded in HTML/JavaScript
     data = (
-        data
-        .replace('\\', '\\\\')  # Escape backslashes
-        .replace('`', '\\`')    # Escape backticks to allow use in JavaScript template literals
-        .replace('\n', '\\n')   # Escape newlines
-        .replace('\r', '\\r')   # Escape carriage returns
-        .replace('\b', '\\b')   # Escape backspaces
-        .replace('\f', '\\f')   # Escape formfeeds
-        .replace('\t', '\\t')   # Escape tabs
+        data.replace("\\", "\\\\")  # Escape backslashes
+        .replace("`", "\\`")  # Escape backticks to allow use in JavaScript template literals
+        .replace("\n", "\\n")  # Escape newlines
+        .replace("\r", "\\r")  # Escape carriage returns
+        .replace("\b", "\\b")  # Escape backspaces
+        .replace("\f", "\\f")  # Escape formfeeds
+        .replace("\t", "\\t")  # Escape tabs
     )
 
     # Convert the json to javascript
     data = f"JSON.parse(`{data}`)"
 
     # Read the HTML template
-    with open("./obvs/expansion.html", 'r') as file:
+    with open("./obvs/expansion.html") as file:
         html_content = file.read()
 
     # Embed the tree data into the HTML
-    html_content = html_content.replace('var rawJsonData = {};', f'var rawJsonData = {data};')
+    html_content = html_content.replace("var rawJsonData = {};", f"var rawJsonData = {data};")
 
     # Save the modified HTML to the output path
-    with open("./graph.html", 'w') as file:
+    with open("./graph.html", "w") as file:
         file.write(html_content)
 
     print("HTML file saved to ./graph.html")
 
     # Use subprocess to open the HTML file in the default web browser
     import subprocess
+
     subprocess.run(["open", "graph.html"])
